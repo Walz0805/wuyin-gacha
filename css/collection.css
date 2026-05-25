@@ -690,3 +690,162 @@ body{min-height:100vh;background:
     border-radius: 14px !important;
   }
 }
+
+/* ===== v-final：手机端典藏详情弹窗一屏固定 + 卡图放大 ===== */
+@media (max-width: 760px) {
+  #pieceModal.collection-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px !important;
+    overflow: hidden !important;
+    background: rgba(4, 7, 7, .72) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  #pieceModal.collection-modal.hidden {
+    display: none !important;
+  }
+
+  #pieceModal .piece-modal-card {
+    width: 94vw !important;
+    max-width: 440px !important;
+    height: calc(100vh - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    overflow: hidden !important;
+    border-radius: 22px !important;
+  }
+
+  #pieceModal .modal-close {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+    font-size: 22px !important;
+    z-index: 30 !important;
+  }
+
+  #pieceModal .modal-img-wrap {
+    flex: 0 0 180px !important;
+    height: 180px !important;
+    min-height: 180px !important;
+    padding: 12px 12px 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    border-radius: 22px 22px 0 0 !important;
+    background:
+      radial-gradient(circle at top, rgba(217, 180, 91, .12), transparent 42%),
+      linear-gradient(180deg, #101816, #080d0c) !important;
+  }
+
+  #pieceModal .modal-img-wrap img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 76% !important;
+    max-height: 168px !important;
+    object-fit: contain !important;
+    border-radius: 14px !important;
+    box-shadow: 0 14px 24px rgba(0, 0, 0, .30) !important;
+  }
+
+  #pieceModal .modal-info {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 14px 18px 16px !important;
+  }
+
+  #pieceModal .modal-rarity {
+    padding: 4px 10px !important;
+    font-size: 13px !important;
+  }
+
+  #pieceModal .modal-info h3 {
+    margin: 8px 0 6px !important;
+    font-size: 25px !important;
+    line-height: 1.15 !important;
+  }
+
+  #pieceModal .modal-info p {
+    margin: 6px 0 !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  #pieceModal .modal-table {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+    margin: 9px 0 !important;
+  }
+
+  #pieceModal .modal-table div {
+    padding: 8px 10px !important;
+    border-radius: 12px !important;
+  }
+
+  #pieceModal .modal-table b {
+    margin-bottom: 3px !important;
+    font-size: 11px !important;
+  }
+
+  #pieceModal .modal-table span {
+    font-size: 14px !important;
+  }
+
+  #pieceModal .modal-actions-row {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  #pieceModal .modal-actions-row .classic-btn,
+  #pieceModal .modal-actions-row button {
+    padding: 8px 13px !important;
+    font-size: 14px !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* ===== 手机端典藏详情：继续放大卡牌图片（最终覆盖版） ===== */
+@media (max-width: 760px) {
+  #pieceModal .modal-img-wrap {
+    flex: 0 0 240px !important;
+    height: 240px !important;
+    min-height: 240px !important;
+    padding: 14px 12px 10px !important;
+  }
+
+  #pieceModal .modal-img-wrap img {
+    max-width: 88% !important;
+    max-height: 224px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  #pieceModal .modal-info {
+    padding: 12px 18px 16px !important;
+  }
+
+  #pieceModal .modal-info h3 {
+    font-size: 24px !important;
+    margin: 8px 0 5px !important;
+  }
+
+  #pieceModal .modal-info p {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+}
