@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>五音器灵池 · Web抽卡Demo</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">音</div>
+        <div>
+          <h1>五音器灵池</h1>
+          <p>主卡池 · 40 张传统乐器器灵</p>
+        </div>
+      </div>
+      <div class="resources">
+        <div class="res-pill"><span>音符</span><strong id="notesCount">0</strong></div>
+        <div class="res-pill"><span>抽卡券</span><strong id="ticketCount">0</strong></div>
+        <div class="res-pill"><span>音律碎片</span><strong id="fragmentCount">0</strong></div>
+        <button id="openDecomposeBtn" class="mini-btn decompose-open-btn">分解重复</button>
+        <button id="openProgressBtn" class="mini-btn progress-open-btn">藏卷进度</button>
+        <a class="mini-btn nav-link-btn" href="collection.html">五音典藏阁</a>
+        <button id="addResourceBtn" class="mini-btn">补充资源</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="pool-card glass">
+        <div class="banner">
+          <img src="assets/banners/main-banner.png" alt="五音器灵池" />
+          <div class="banner-overlay">
+            <div class="pool-tag">常驻主池</div>
+            <h2>五音初醒 · 器灵召来</h2>
+            <p>抽取乐器器灵卡，点亮宫、商、角、徵、羽五音藏卷。</p>
+            <div class="featured-row" id="featuredRow"></div>
+          </div>
+        </div>
+
+        <div class="draw-panel">
+          <div class="pity-box">
+            <div class="label">距离天籁保底</div>
+            <div class="pity-line"><span id="pityBar"></span></div>
+            <p id="pityText">0 / 80</p>
+          </div>
+          <div class="draw-buttons">
+            <button id="drawOneBtn" class="draw-btn single"><span>一念共鸣</span><small>160 音符 / 1 券</small></button>
+            <button id="drawTenBtn" class="draw-btn ten"><span>十连召灵</span><small>1600 音符 / 10 券</small></button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side glass">
+        <div class="section-head progress-head">
+          <h3>五音藏卷进度</h3>
+          <div class="side-head-actions">
+            <button id="openBagBtn" class="mini-btn">卡包 / 图鉴</button>
+            <button id="closeProgressBtn" class="mini-btn">收起</button>
+          </div>
+        </div>
+        <div id="toneProgress" class="tone-progress"></div>
+        <div class="section-head mt">
+          <h3>系统操作</h3>
+        </div>
+        <div class="tool-grid">
+          <button id="openRulesBtn" class="tool-btn">概率规则</button>
+          <button id="resetBtn" class="tool-btn danger">重置存档</button>
+        </div>
+      </aside>
+    </main>
+
+    <section class="glass gallery-section">
+      <div class="section-head">
+        <h3>本池内容预览</h3>
+        <div class="filter-row">
+          <button class="filter-btn active" data-filter="all">全部</button>
+          <button class="filter-btn" data-filter="SSR">天籁</button>
+          <button class="filter-btn" data-filter="SR">灵韵</button>
+          <button class="filter-btn" data-filter="R">清音</button>
+          <button class="filter-btn" data-filter="N">凡音</button>
+        </div>
+      </div>
+      <div id="cardPreview" class="preview-grid"></div>
+    </section>
+  </div>
+
+  <!-- 抽卡动画层 -->
+  <div id="gachaLayer" class="gacha-layer hidden">
+    <div class="summon-bg"></div>
+    <div class="summon-circle">
+      <span style="--i:0">宫</span><span style="--i:1">商</span><span style="--i:2">角</span><span style="--i:3">徵</span><span style="--i:4">羽</span>
+    </div>
+    <div id="gachaStage" class="gacha-stage"></div>
+    <div id="revealHint" class="reveal-hint hidden">点击卡背翻开</div>
+    <button id="skipBtn" class="skip-btn">跳过动画</button>
+  </div>
+
+  <!-- 结果层 -->
+  <div id="resultModal" class="modal hidden">
+    <div class="modal-card result-card">
+      <div class="modal-head">
+        <h3>召灵结果</h3>
+        <button class="close-x" data-close="resultModal">×</button>
+      </div>
+      <div id="resultGrid" class="result-grid"></div>
+      <div class="modal-actions">
+        <button id="againOneBtn" class="draw-btn single small"><span>再抽一次</span></button>
+        <button id="againTenBtn" class="draw-btn ten small"><span>再来十连</span></button>
+        <button class="tool-btn" data-close="resultModal">返回卡池</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 卡包 -->
+  <div id="bagModal" class="modal hidden">
+    <div class="modal-card bag-card">
+      <div class="modal-head">
+        <h3>我的卡包 / 图鉴</h3>
+        <button class="close-x" data-close="bagModal">×</button>
+      </div>
+      <div class="bag-filter">
+        <select id="bagToneFilter"><option value="all">全部五音</option></select>
+        <select id="bagRarityFilter"><option value="all">全部品质</option><option value="SSR">天籁</option><option value="SR">灵韵</option><option value="R">清音</option><option value="N">凡音</option></select>
+      </div>
+      <div id="bagGrid" class="bag-grid"></div>
+    </div>
+  </div>
+
+  <!-- 重复卡分解 -->
+  <div id="decomposeModal" class="modal hidden">
+    <div class="modal-card decompose-card">
+      <div class="modal-head">
+        <div>
+          <h3>重复卡分解</h3>
+          <p class="modal-subtitle">只会分解多余卡片，每张卡至少保留 1 张用于图鉴和藏卷点亮。</p>
+        </div>
+        <button class="close-x" data-close="decomposeModal">×</button>
+      </div>
+
+      <div class="decompose-summary">
+        <div><span>当前碎片</span><b id="decomposeFragmentCount">0</b></div>
+        <div><span>可分解重复卡</span><b id="decomposeDupeCount">0</b></div>
+        <div><span>全部分解可得</span><b id="decomposePotentialCount">0</b></div>
+      </div>
+
+      <div class="decompose-actions">
+        <button id="decomposeAllBtn" class="draw-btn ten small"><span>一键分解全部重复卡</span></button>
+      </div>
+
+      <div id="decomposeList" class="decompose-list"></div>
+    </div>
+  </div>
+
+  <!-- 详情 -->
+  <div id="detailModal" class="modal hidden">
+    <div class="modal-card detail-card">
+      <button class="close-x detail-close" data-close="detailModal">×</button>
+      <div class="detail-img"><img id="detailImage" src="" alt=""></div>
+      <div class="detail-content">
+        <div id="detailRarity" class="detail-rarity"></div>
+        <h3 id="detailName"></h3>
+        <p id="detailDesc"></p>
+        <div class="detail-table">
+          <div><b>乐器</b><span id="detailInstrument"></span></div>
+          <div><b>五音</b><span id="detailTone"></span></div>
+          <div><b>五行</b><span id="detailElement"></span></div>
+          <div><b>拥有</b><span id="detailOwned"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则 -->
+  <div id="rulesModal" class="modal hidden">
+    <div class="modal-card rules-card">
+      <div class="modal-head"><h3>卡池规则</h3><button class="close-x" data-close="rulesModal">×</button></div>
+      <p>本池为一个总主卡池，不需要选择五音。每次抽取先判定品质，再从该品质的全部卡中随机获得一张。</p>
+      <ul>
+        <li>天籁：3%</li><li>灵韵：12%</li><li>清音：25%</li><li>凡音：60%</li>
+        <li>十次召灵，至少获得 1 枚灵韵以上器灵。</li><li>80 次召灵内必有天籁器灵回应，获得天籁后计数重置。</li>
+        <li>重复卡会计入拥有数量，不会自动转化；可在“分解重复”入口中手动分解为音律碎片。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

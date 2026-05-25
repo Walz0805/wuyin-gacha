@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>五音典藏阁 · 五音器灵池</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/collection.css" />
+</head>
+<body>
+  <div class="collection-shell">
+    <header class="collection-topbar">
+      <a href="index.html" class="back-link">← 返回卡池</a>
+      <div class="collection-title">
+        <span class="seal-mark">藏</span>
+        <div>
+          <h1>五音典藏阁</h1>
+          <p>集器灵，归藏卷。每一张乐器卡，都会点亮一块拼图，并逐步拼合整张五音藏卷。</p>
+        </div>
+      </div>
+      <div class="collection-actions">
+        <button id="demoDrawBtn" class="classic-btn">随机归藏一枚</button>
+        <button id="demoAllBtn" class="classic-btn ghost">全部归藏</button>
+        <button id="demoResetBtn" class="classic-btn danger">重置演示</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="overviewView" class="overview-view">
+        <div class="overview-hero">
+          <div class="hero-copy">
+            <div class="eyebrow">五音藏卷 · Collection Room</div>
+            <h2>五卷合鸣，方成华夏乐藏</h2>
+            <p>宫、商、角、徵、羽各有一张完整藏卷。整图分为九块：周围八块对应八枚器灵，中间一块为标题区。抽到对应卡牌后，该拼图块会被点亮。</p>
+          </div>
+          <div class="hero-stat" id="globalProgressText">总进度 0 / 40</div>
+        </div>
+
+        <div id="scrollGrid" class="scroll-grid"></div>
+      </section>
+
+      <section id="scrollView" class="scroll-view hidden">
+        <div class="scroll-head">
+          <button id="backOverviewBtn" class="classic-btn ghost">← 返回五音总览</button>
+          <div>
+            <h2 id="scrollTitle">角音藏卷</h2>
+            <p id="scrollSubtitle">春竹生风图</p>
+          </div>
+          <div class="scroll-progress-pill" id="scrollProgressPill">0 / 8</div>
+        </div>
+
+        <div class="scroll-layout">
+          <div class="poster-stage">
+            <img id="scrollImage" class="scroll-image" src="" alt="藏卷主视觉" />
+            <svg id="pieceSvg" class="piece-svg" viewBox="0 0 1122 1402" preserveAspectRatio="none"></svg>
+            <div id="pieceLabels" class="piece-labels"></div>
+          </div>
+
+          <aside class="scroll-side-card">
+            <h3 id="sideToneName">角音藏卷</h3>
+            <p id="sideToneDesc">点击拼图中央的锁牌或已归藏玉牌查看器灵信息。未归藏时保持锁牌，已归藏后拼图亮起并恢复完整画面。</p>
+            <div class="side-progress-line"><span id="sideProgressBar"></span></div>
+            <div id="rarityStat" class="rarity-stat"></div>
+            <div class="side-buttons">
+              <button id="unlockOneToneBtn" class="classic-btn">随机归藏本卷</button>
+              <button id="unlockToneAllBtn" class="classic-btn ghost">本卷全部归藏</button>
+            </div>
+            <div id="scrollCardList" class="scroll-card-list"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="pieceModal" class="collection-modal hidden">
+    <div class="piece-modal-card">
+      <button class="modal-close" id="pieceModalClose">×</button>
+      <div class="modal-img-wrap"><img id="pieceModalImg" src="" alt="器灵卡图" /></div>
+      <div class="modal-info">
+        <div id="pieceModalRarity" class="modal-rarity">天籁</div>
+        <h3 id="pieceModalName">角调 · 笛子双生</h3>
+        <p id="pieceModalDesc">器灵介绍</p>
+        <div class="modal-table">
+          <div><b>乐器</b><span id="pieceModalInstrument"></span></div>
+          <div><b>五音</b><span id="pieceModalTone"></span></div>
+          <div><b>五行</b><span id="pieceModalElement"></span></div>
+          <div><b>状态</b><span id="pieceModalOwned"></span></div>
+        </div>
+        <div class="modal-actions-row">
+          <button id="modalUnlockBtn" class="classic-btn">模拟抽到此卡</button>
+          <button id="modalCloseBtn2" class="classic-btn ghost">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="rewardModal" class="reward-modal hidden">
+    <div class="reward-card">
+      <button class="modal-close" id="rewardModalClose">×</button>
+      <div class="reward-glow"></div>
+      <div id="rewardModalSeal" class="reward-seal">藏</div>
+      <p class="reward-kicker">典藏完成</p>
+      <h3 id="rewardModalTitle">春竹生风图已完整归藏</h3>
+      <div id="rewardModalReward" class="reward-title">获得称号：竹音初醒</div>
+      <p id="rewardModalDesc" class="reward-desc">角音归位，春风入竹，万物始生。</p>
+      <button id="rewardModalOk" class="classic-btn">收下称号</button>
+    </div>
+  </div>
+
+  <div id="collectionToast" class="collection-toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/collection.js"></script>
+</body>
+</html>
