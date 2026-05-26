@@ -942,3 +942,26 @@ body:before{
   border-color:rgba(255,255,255,.10);
   color:#aebbb7;
 }
+
+
+.card-music-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+.card-music-btn{
+  background:linear-gradient(135deg,rgba(47,83,69,.72),rgba(24,34,30,.74));
+  border-color:rgba(135,185,158,.34);
+  color:#dff8e9;
+}
+.card-music-hint{
+  color:#cfd8d3;
+  font-size:13px;
+  line-height:1.5;
+}
+@media(max-width:760px){
+  .card-music-row{align-items:flex-start;gap:8px;margin-top:10px;}
+  .card-music-hint{width:100%;font-size:12px;}
+}

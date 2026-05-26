@@ -19,29 +19,80 @@ const CARD_AUDIO = {
   zhi_guqin: 'assets/audio/zhi_guqin.m4a'
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-let currentCardAudio = null;
+let currentMusicCardId = null;
+const cardAudioPlayer = new Audio();
+cardAudioPlayer.preload = 'auto';
+cardAudioPlayer.playsInline = true;
 
-function stopCardMusic(){
-  if(currentCardAudio){
-    currentCardAudio.pause();
-    currentCardAudio.currentTime = 0;
-    currentCardAudio = null;
+function ensurePieceMusicControl(){
+  const row = document.querySelector('#pieceModal .modal-actions-row');
+  if(!row) return null;
+  let btn = document.getElementById('pieceMusicPlayBtn');
+  if(!btn){
+    btn = document.createElement('button');
+    btn.id = 'pieceMusicPlayBtn';
+    btn.className = 'classic-btn ghost card-music-btn';
+    btn.type = 'button';
+    btn.textContent = '播放音乐';
+    btn.onclick = () => {
+      if(currentMusicCardId) playCardMusic(currentMusicCardId, true);
+    };
+    row.insertBefore(btn, row.firstChild);
   }
+  let hint = document.getElementById('pieceMusicHint');
+  if(!hint){
+    hint = document.createElement('div');
+    hint.id = 'pieceMusicHint';
+    hint.className = 'card-music-hint';
+    row.parentNode.insertBefore(hint, row);
+  }
+  return {btn, hint};
 }
-function playCardMusic(id){
+function setPieceMusicHint(msg){
+  const control = ensurePieceMusicControl();
+  if(control) control.hint.textContent = msg || '';
+}
+function setPieceMusicButtonVisible(visible, text='播放音乐'){
+  const control = ensurePieceMusicControl();
+  if(!control) return;
+  control.btn.textContent = text;
+  control.btn.classList.toggle('hidden', !visible);
+}
+function stopCardMusic(){
+  cardAudioPlayer.pause();
+  try{ cardAudioPlayer.currentTime = 0; }catch(e){}
+}
+function playCardMusic(id, manual=false){
+  currentMusicCardId = id;
+  ensurePieceMusicControl();
   stopCardMusic();
-  if(!musicEnabled) return;
+  musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
+  if(!musicEnabled){
+    setPieceMusicButtonVisible(false);
+    setPieceMusicHint('音乐已关闭');
+    return;
+  }
   if(!isOwned(id)){
-    toast('未获得的卡牌不能播放音乐');
+    setPieceMusicButtonVisible(false);
+    setPieceMusicHint('未获得的卡牌不能播放音乐');
     return;
   }
   const src = CARD_AUDIO[id];
   if(!src){
-    toast('这张卡暂未放入音频文件');
+    setPieceMusicButtonVisible(false);
+    setPieceMusicHint('这张卡暂未放入音频文件');
     return;
   }
-  currentCardAudio = new Audio(src);
-  currentCardAudio.play().catch(()=>toast('音乐播放被浏览器拦截，请再点一次卡牌'));
+  setPieceMusicButtonVisible(false);
+  setPieceMusicHint(manual ? '正在播放……' : '正在尝试播放……');
+  cardAudioPlayer.src = src;
+  cardAudioPlayer.load();
+  cardAudioPlayer.play().then(()=>{
+    setPieceMusicHint('正在播放乐器音色');
+  }).catch(()=>{
+    setPieceMusicButtonVisible(true, '播放音乐');
+    setPieceMusicHint('手机浏览器拦截了自动播放，请点“播放音乐”');
+  });
 }
 
 const COLLECTION_IMAGES = {

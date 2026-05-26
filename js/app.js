@@ -25,7 +25,10 @@ const CARD_AUDIO = {
   zhi_guqin: 'assets/audio/zhi_guqin.m4a'
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-let currentCardAudio = null;
+let currentMusicCardId = null;
+const cardAudioPlayer = new Audio();
+cardAudioPlayer.preload = 'auto';
+cardAudioPlayer.playsInline = true;
 
 function updateMusicToggle(){
   const btn = document.getElementById('musicToggleBtn');
@@ -37,29 +40,74 @@ function setMusicEnabled(enabled){
   musicEnabled = enabled;
   localStorage.setItem(MUSIC_KEY, enabled ? 'on' : 'off');
   updateMusicToggle();
-  if(!musicEnabled) stopCardMusic();
-}
-function stopCardMusic(){
-  if(currentCardAudio){
-    currentCardAudio.pause();
-    currentCardAudio.currentTime = 0;
-    currentCardAudio = null;
+  if(!musicEnabled){
+    stopCardMusic();
+    setMusicHint('音乐已关闭');
+  }else{
+    toast('音乐已开启。若手机拦截自动播放，请点详情里的“播放音乐”。');
+    if(currentMusicCardId) playCardMusic(currentMusicCardId);
   }
 }
-function playCardMusic(id){
+function ensureDetailMusicControl(){
+  const content = document.querySelector('#detailModal .detail-content');
+  if(!content) return null;
+  let row = document.getElementById('detailMusicRow');
+  if(!row){
+    row = document.createElement('div');
+    row.id = 'detailMusicRow';
+    row.className = 'card-music-row';
+    row.innerHTML = '<button id="detailMusicPlayBtn" class="mini-btn card-music-btn" type="button">播放音乐</button><span id="detailMusicHint" class="card-music-hint"></span>';
+    content.appendChild(row);
+    document.getElementById('detailMusicPlayBtn').onclick = () => {
+      if(currentMusicCardId) playCardMusic(currentMusicCardId, true);
+    };
+  }
+  return row;
+}
+function setMusicHint(msg){
+  const hint = document.getElementById('detailMusicHint');
+  if(hint) hint.textContent = msg || '';
+}
+function setMusicButtonVisible(visible, text='播放音乐'){
+  const btn = document.getElementById('detailMusicPlayBtn');
+  if(!btn) return;
+  btn.textContent = text;
+  btn.classList.toggle('hidden', !visible);
+}
+function stopCardMusic(){
+  cardAudioPlayer.pause();
+  try{ cardAudioPlayer.currentTime = 0; }catch(e){}
+}
+function playCardMusic(id, manual=false){
+  currentMusicCardId = id;
+  ensureDetailMusicControl();
   stopCardMusic();
-  if(!musicEnabled) return;
+  if(!musicEnabled){
+    setMusicButtonVisible(false);
+    setMusicHint('音乐已关闭');
+    return;
+  }
   if(!isOwned(id)){
-    toast('未获得的卡牌不能播放音乐');
+    setMusicButtonVisible(false);
+    setMusicHint('未获得的卡牌不能播放音乐');
     return;
   }
   const src = CARD_AUDIO[id];
   if(!src){
-    toast('这张卡暂未放入音频文件');
+    setMusicButtonVisible(false);
+    setMusicHint('这张卡暂未放入音频文件');
     return;
   }
-  currentCardAudio = new Audio(src);
-  currentCardAudio.play().catch(()=>toast('音乐播放被浏览器拦截，请再点一次卡牌'));
+  setMusicButtonVisible(false);
+  setMusicHint(manual ? '正在播放……' : '正在尝试播放……');
+  cardAudioPlayer.src = src;
+  cardAudioPlayer.load();
+  cardAudioPlayer.play().then(()=>{
+    setMusicHint('正在播放乐器音色');
+  }).catch(()=>{
+    setMusicButtonVisible(true, '播放音乐');
+    setMusicHint('手机浏览器拦截了自动播放，请点左侧按钮播放');
+  });
 }
 function loadState(){try{const raw=localStorage.getItem(STORAGE_KEY);return raw?{...DEFAULT_STATE,...JSON.parse(raw)}:structuredClone(DEFAULT_STATE)}catch(e){return structuredClone(DEFAULT_STATE)}}
 function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
