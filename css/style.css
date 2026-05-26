@@ -944,24 +944,18 @@ body:before{
 }
 
 
-.card-music-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:14px;
+/* ===== 卡牌音乐交互优化：点卡即播，播放中状态更明显 ===== */
+.music-toggle-btn.playing{
+  background:linear-gradient(135deg,rgba(217,180,91,.34),rgba(47,83,69,.82));
+  border-color:rgba(255,225,150,.48);
+  color:#fff3c8;
+  box-shadow:0 0 18px rgba(217,180,91,.20), inset 0 0 12px rgba(255,255,255,.05);
 }
-.card-music-btn{
-  background:linear-gradient(135deg,rgba(47,83,69,.72),rgba(24,34,30,.74));
-  border-color:rgba(135,185,158,.34);
-  color:#dff8e9;
-}
-.card-music-hint{
-  color:#cfd8d3;
-  font-size:13px;
-  line-height:1.5;
-}
-@media(max-width:760px){
-  .card-music-row{align-items:flex-start;gap:8px;margin-top:10px;}
-  .card-music-hint{width:100%;font-size:12px;}
+.preview-card,
+.bag-item,
+.result-item,
+.piece-label,
+.scroll-list-item,
+.piece-hit{
+  touch-action:manipulation;
 }

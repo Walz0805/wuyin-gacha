@@ -19,79 +19,56 @@ const CARD_AUDIO = {
   zhi_guqin: 'assets/audio/zhi_guqin.m4a'
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-let currentMusicCardId = null;
-const cardAudioPlayer = new Audio();
-cardAudioPlayer.preload = 'auto';
-cardAudioPlayer.playsInline = true;
+let currentCardAudio = null;
+let lastMusicGestureId = '';
+let lastMusicGestureAt = 0;
 
-function ensurePieceMusicControl(){
-  const row = document.querySelector('#pieceModal .modal-actions-row');
-  if(!row) return null;
-  let btn = document.getElementById('pieceMusicPlayBtn');
-  if(!btn){
-    btn = document.createElement('button');
-    btn.id = 'pieceMusicPlayBtn';
-    btn.className = 'classic-btn ghost card-music-btn';
-    btn.type = 'button';
-    btn.textContent = '播放音乐';
-    btn.onclick = () => {
-      if(currentMusicCardId) playCardMusic(currentMusicCardId, true);
-    };
-    row.insertBefore(btn, row.firstChild);
-  }
-  let hint = document.getElementById('pieceMusicHint');
-  if(!hint){
-    hint = document.createElement('div');
-    hint.id = 'pieceMusicHint';
-    hint.className = 'card-music-hint';
-    row.parentNode.insertBefore(hint, row);
-  }
-  return {btn, hint};
-}
-function setPieceMusicHint(msg){
-  const control = ensurePieceMusicControl();
-  if(control) control.hint.textContent = msg || '';
-}
-function setPieceMusicButtonVisible(visible, text='播放音乐'){
-  const control = ensurePieceMusicControl();
-  if(!control) return;
-  control.btn.textContent = text;
-  control.btn.classList.toggle('hidden', !visible);
-}
 function stopCardMusic(){
-  cardAudioPlayer.pause();
-  try{ cardAudioPlayer.currentTime = 0; }catch(e){}
+  if(currentCardAudio){
+    currentCardAudio.pause();
+    currentCardAudio.currentTime = 0;
+    currentCardAudio = null;
+  }
 }
-function playCardMusic(id, manual=false){
-  currentMusicCardId = id;
-  ensurePieceMusicControl();
+function playCardMusic(id, options = {}){
+  const { silent = false } = options;
   stopCardMusic();
   musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-  if(!musicEnabled){
-    setPieceMusicButtonVisible(false);
-    setPieceMusicHint('音乐已关闭');
-    return;
-  }
+  if(!musicEnabled) return;
   if(!isOwned(id)){
-    setPieceMusicButtonVisible(false);
-    setPieceMusicHint('未获得的卡牌不能播放音乐');
+    if(!silent) toast('未获得的卡牌不能播放音乐');
     return;
   }
   const src = CARD_AUDIO[id];
   if(!src){
-    setPieceMusicButtonVisible(false);
-    setPieceMusicHint('这张卡暂未放入音频文件');
+    if(!silent) toast('这张卡暂未放入音频文件');
     return;
   }
-  setPieceMusicButtonVisible(false);
-  setPieceMusicHint(manual ? '正在播放……' : '正在尝试播放……');
-  cardAudioPlayer.src = src;
-  cardAudioPlayer.load();
-  cardAudioPlayer.play().then(()=>{
-    setPieceMusicHint('正在播放乐器音色');
-  }).catch(()=>{
-    setPieceMusicButtonVisible(true, '播放音乐');
-    setPieceMusicHint('手机浏览器拦截了自动播放，请点“播放音乐”');
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = src;
+  audio.volume = 0.92;
+  currentCardAudio = audio;
+  const playPromise = audio.play();
+  if(playPromise && typeof playPromise.catch === 'function'){
+    playPromise.catch(()=>{
+      if(currentCardAudio === audio) currentCardAudio = null;
+      if(!silent) toast('浏览器仍拦截音乐，请在系统浏览器中打开或再点一次卡牌');
+    });
+  }
+}
+function playCardMusicFromGesture(id){
+  const now = Date.now();
+  if(lastMusicGestureId === id && now - lastMusicGestureAt < 420) return;
+  lastMusicGestureId = id;
+  lastMusicGestureAt = now;
+  playCardMusic(id, { silent: true });
+}
+function bindPieceOpen(selector){
+  document.querySelectorAll(selector).forEach(el=>{
+    el.addEventListener('pointerdown',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
+    el.addEventListener('touchstart',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
+    el.addEventListener('click',()=>openPieceModal(el.dataset.id));
   });
 }
 
@@ -364,7 +341,7 @@ function renderScroll(toneId){
   }).join('');
 
   svg.innerHTML = `<defs>${defs}</defs>${brightLayers}${seams}${hits}`;
-  svg.querySelectorAll('.piece-hit').forEach(p => p.addEventListener('click', ()=>openPieceModal(p.dataset.id)));
+  bindPieceOpen('#pieceSvg .piece-hit');
 
   const labels = document.getElementById('pieceLabels');
   labels.innerHTML = PIECE_LAYOUT.filter(item => !item.center).map(item => {
@@ -376,7 +353,7 @@ function renderScroll(toneId){
       : `<img class="piece-lock-img" src="assets/locks/${lockIcon(card)}" alt="锁">`;
     return `<div class="piece-label ${cls}" style="left:${item.label.left}%;top:${item.label.top}%" data-id="${card.id}">${icon}<strong>${txt.title}</strong><span>${txt.sub}</span></div>`;
   }).join('');
-  labels.querySelectorAll('.piece-label').forEach(l=>l.addEventListener('click',()=>openPieceModal(l.dataset.id)));
+  bindPieceOpen('#pieceLabels .piece-label');
 
   const rarities = ['SSR','SR','R','N'];
   document.getElementById('rarityStat').innerHTML = rarities.map(r=>{
@@ -389,7 +366,7 @@ function renderScroll(toneId){
     <div><div class="name">${card.pieceIndex}. ${card.instrument}</div><div class="meta">${rarityLabel(card.rarity)} · ${card.role}</div></div>
     <span class="status-dot ${isOwned(card.id)?'owned':''}">${isOwned(card.id)?'已归藏':'未归藏'}</span>
   </div>`).join('');
-  document.querySelectorAll('.scroll-list-item').forEach(el=>el.addEventListener('click',()=>openPieceModal(el.dataset.id)));
+  bindPieceOpen('.scroll-list-item');
   checkCompletionRewards(toneId);
 }
 
@@ -432,7 +409,6 @@ function openPieceModal(id){
   const pieceModalCard = pieceModalEl ? pieceModalEl.querySelector('.piece-modal-card') : null;
   if(pieceModalEl) pieceModalEl.scrollTop = 0;
   if(pieceModalCard) pieceModalCard.scrollTop = 0;
-  playCardMusic(id);
 }
 function closePieceModal(){ document.getElementById('pieceModal').classList.add('hidden'); stopCardMusic(); currentCardId=null; }
 function unlockCard(id){

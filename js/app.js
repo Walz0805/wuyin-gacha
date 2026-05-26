@@ -25,88 +25,74 @@ const CARD_AUDIO = {
   zhi_guqin: 'assets/audio/zhi_guqin.m4a'
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-let currentMusicCardId = null;
-const cardAudioPlayer = new Audio();
-cardAudioPlayer.preload = 'auto';
-cardAudioPlayer.playsInline = true;
+let currentCardAudio = null;
+let lastMusicGestureId = '';
+let lastMusicGestureAt = 0;
 
 function updateMusicToggle(){
   const btn = document.getElementById('musicToggleBtn');
   if(!btn) return;
-  btn.textContent = musicEnabled ? '音乐：开' : '音乐：关';
+  const playing = !!currentCardAudio && !currentCardAudio.paused;
+  btn.textContent = playing ? '音乐：播放中' : (musicEnabled ? '音乐：开' : '音乐：关');
   btn.classList.toggle('off', !musicEnabled);
+  btn.classList.toggle('playing', playing);
 }
 function setMusicEnabled(enabled){
   musicEnabled = enabled;
   localStorage.setItem(MUSIC_KEY, enabled ? 'on' : 'off');
   updateMusicToggle();
-  if(!musicEnabled){
-    stopCardMusic();
-    setMusicHint('音乐已关闭');
-  }else{
-    toast('音乐已开启。若手机拦截自动播放，请点详情里的“播放音乐”。');
-    if(currentMusicCardId) playCardMusic(currentMusicCardId);
-  }
-}
-function ensureDetailMusicControl(){
-  const content = document.querySelector('#detailModal .detail-content');
-  if(!content) return null;
-  let row = document.getElementById('detailMusicRow');
-  if(!row){
-    row = document.createElement('div');
-    row.id = 'detailMusicRow';
-    row.className = 'card-music-row';
-    row.innerHTML = '<button id="detailMusicPlayBtn" class="mini-btn card-music-btn" type="button">播放音乐</button><span id="detailMusicHint" class="card-music-hint"></span>';
-    content.appendChild(row);
-    document.getElementById('detailMusicPlayBtn').onclick = () => {
-      if(currentMusicCardId) playCardMusic(currentMusicCardId, true);
-    };
-  }
-  return row;
-}
-function setMusicHint(msg){
-  const hint = document.getElementById('detailMusicHint');
-  if(hint) hint.textContent = msg || '';
-}
-function setMusicButtonVisible(visible, text='播放音乐'){
-  const btn = document.getElementById('detailMusicPlayBtn');
-  if(!btn) return;
-  btn.textContent = text;
-  btn.classList.toggle('hidden', !visible);
+  if(!musicEnabled) stopCardMusic();
+  else toast('音乐已开启，点已获得卡牌即可播放');
 }
 function stopCardMusic(){
-  cardAudioPlayer.pause();
-  try{ cardAudioPlayer.currentTime = 0; }catch(e){}
-}
-function playCardMusic(id, manual=false){
-  currentMusicCardId = id;
-  ensureDetailMusicControl();
-  stopCardMusic();
-  if(!musicEnabled){
-    setMusicButtonVisible(false);
-    setMusicHint('音乐已关闭');
-    return;
+  if(currentCardAudio){
+    currentCardAudio.pause();
+    currentCardAudio.currentTime = 0;
+    currentCardAudio = null;
   }
+  updateMusicToggle();
+}
+function playCardMusic(id, options = {}){
+  const { silent = false } = options;
+  stopCardMusic();
+  if(!musicEnabled) return;
   if(!isOwned(id)){
-    setMusicButtonVisible(false);
-    setMusicHint('未获得的卡牌不能播放音乐');
+    if(!silent) toast('未获得的卡牌不能播放音乐');
     return;
   }
   const src = CARD_AUDIO[id];
   if(!src){
-    setMusicButtonVisible(false);
-    setMusicHint('这张卡暂未放入音频文件');
+    if(!silent) toast('这张卡暂未放入音频文件');
     return;
   }
-  setMusicButtonVisible(false);
-  setMusicHint(manual ? '正在播放……' : '正在尝试播放……');
-  cardAudioPlayer.src = src;
-  cardAudioPlayer.load();
-  cardAudioPlayer.play().then(()=>{
-    setMusicHint('正在播放乐器音色');
-  }).catch(()=>{
-    setMusicButtonVisible(true, '播放音乐');
-    setMusicHint('手机浏览器拦截了自动播放，请点左侧按钮播放');
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = src;
+  audio.volume = 0.92;
+  currentCardAudio = audio;
+  const playPromise = audio.play();
+  if(playPromise && typeof playPromise.catch === 'function'){
+    playPromise.then(()=>updateMusicToggle()).catch(()=>{
+      if(currentCardAudio === audio) currentCardAudio = null;
+      updateMusicToggle();
+      if(!silent) toast('浏览器仍拦截音乐，请在系统浏览器中打开或再点一次卡牌');
+    });
+  }
+  audio.onended = updateMusicToggle;
+  audio.onpause = updateMusicToggle;
+}
+function playCardMusicFromGesture(id){
+  const now = Date.now();
+  if(lastMusicGestureId === id && now - lastMusicGestureAt < 420) return;
+  lastMusicGestureId = id;
+  lastMusicGestureAt = now;
+  playCardMusic(id, { silent: true });
+}
+function bindCardDetailOpen(selector){
+  document.querySelectorAll(selector).forEach(el=>{
+    el.addEventListener('pointerdown',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
+    el.addEventListener('touchstart',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
+    el.addEventListener('click',()=>openDetail(el.dataset.id));
   });
 }
 function loadState(){try{const raw=localStorage.getItem(STORAGE_KEY);return raw?{...DEFAULT_STATE,...JSON.parse(raw)}:structuredClone(DEFAULT_STATE)}catch(e){return structuredClone(DEFAULT_STATE)}}
@@ -127,10 +113,10 @@ function totalPotentialFragments(){return CARDS.reduce((sum,c)=>sum+duplicateCou
 function renderResources(){document.getElementById('notesCount').textContent=state.notes;document.getElementById('ticketCount').textContent=state.tickets;const fragmentEl=document.getElementById('fragmentCount');if(fragmentEl)fragmentEl.textContent=state.fragments||0;document.getElementById('pityText').textContent=`${state.pity} / 80`;document.getElementById('pityBar').style.width=`${Math.min(100,state.pity/80*100)}%`}
 function renderFeatured(){const ssr=CARDS.filter(c=>c.rarity==='SSR');document.getElementById('featuredRow').innerHTML=ssr.map(c=>`<div class="featured-chip"><b>${c.toneName}</b> · ${c.instrument}</div>`).join('')}
 function renderToneProgress(){const box=document.getElementById('toneProgress');box.innerHTML=Object.entries(TONES).map(([id,t])=>{const list=CARDS.filter(c=>c.tone===id);const owned=list.filter(c=>isOwned(c.id)).length;const pct=owned/list.length*100;return `<div class="tone-item" style="color:${t.color}"><div class="tone-row"><div class="tone-name"><i class="tone-dot"></i><span>${t.mode} · ${t.theme}</span></div><b>${owned}/${list.length}</b></div><div class="tone-bar"><span style="width:${pct}%"></span></div></div>`}).join('')}
-function renderPreview(){let list= currentFilter==='all'?CARDS:CARDS.filter(c=>c.rarity===currentFilter);document.getElementById('cardPreview').innerHTML=list.map(cardHTML).join('');document.querySelectorAll('.preview-card').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)))}
+function renderPreview(){let list= currentFilter==='all'?CARDS:CARDS.filter(c=>c.rarity===currentFilter);document.getElementById('cardPreview').innerHTML=list.map(cardHTML).join('');bindCardDetailOpen('.preview-card')}
 function cardHTML(c){const owned=isOwned(c.id);return `<div class="preview-card ${owned?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}" alt="${c.name}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${owned?`<span class="owned-badge">已拥有 ×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${owned?c.name:'？？？'}</b><span>${c.toneName} · ${c.instrument}</span></div></div>`}
 function renderBagFilters(){const sel=document.getElementById('bagToneFilter');sel.innerHTML='<option value="all">全部五音</option>'+Object.entries(TONES).map(([id,t])=>`<option value="${id}">${t.mode}</option>`).join('')}
-function renderBag(){const tone=document.getElementById('bagToneFilter').value;const rarity=document.getElementById('bagRarityFilter').value;let list=CARDS.filter(c=>(tone==='all'||c.tone===tone)&&(rarity==='all'||c.rarity===rarity));document.getElementById('bagGrid').innerHTML=list.map(c=>`<div class="bag-item ${isOwned(c.id)?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${isOwned(c.id)?`<span class="owned-badge">×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${isOwned(c.id)?c.name:'未归藏'}</b><span>${c.instrument}</span></div></div>`).join('');document.querySelectorAll('.bag-item').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)))}
+function renderBag(){const tone=document.getElementById('bagToneFilter').value;const rarity=document.getElementById('bagRarityFilter').value;let list=CARDS.filter(c=>(tone==='all'||c.tone===tone)&&(rarity==='all'||c.rarity===rarity));document.getElementById('bagGrid').innerHTML=list.map(c=>`<div class="bag-item ${isOwned(c.id)?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${isOwned(c.id)?`<span class="owned-badge">×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${isOwned(c.id)?c.name:'未归藏'}</b><span>${c.instrument}</span></div></div>`).join('');bindCardDetailOpen('.bag-item')}
 function updateAll(){renderResources();renderToneProgress();renderPreview();renderBag();renderDecompose();saveState()}
 function rollRarity(forceSR=false){if(state.pity>=79)return 'SSR';if(forceSR){const r=Math.random();return r<0.20?'SSR':'SR'}const r=Math.random();if(r<0.03)return 'SSR';if(r<0.15)return 'SR';if(r<0.40)return 'R';return 'N'}
 function pickCardByRarity(rarity){const pool=CARDS.filter(c=>c.rarity===rarity);return pool[Math.floor(Math.random()*pool.length)]}
@@ -218,7 +204,7 @@ function playAnimation(results){
   });
 }
 function ssrFlash(){const f=document.createElement('div');f.className='flash-ssr';document.body.appendChild(f);setTimeout(()=>f.remove(),1000)}
-function showResults(results){const modal=document.getElementById('resultModal'),grid=document.getElementById('resultGrid');grid.innerHTML=results.map(c=>`<div class="result-item ${c.isNew?'new':'dupe'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${c.isNew?'<span class="owned-badge">初得</span>':'<span class="owned-badge">重复</span>'}<div class="card-mask"><b>${c.name}</b><span>${c.instrument}</span></div></div>`).join('');grid.querySelectorAll('.result-item').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)));modal.classList.remove('hidden')}
+function showResults(results){const modal=document.getElementById('resultModal'),grid=document.getElementById('resultGrid');grid.innerHTML=results.map(c=>`<div class="result-item ${c.isNew?'new':'dupe'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${c.isNew?'<span class="owned-badge">初得</span>':'<span class="owned-badge">重复</span>'}<div class="card-mask"><b>${c.name}</b><span>${c.instrument}</span></div></div>`).join('');bindCardDetailOpen('#resultGrid .result-item');modal.classList.remove('hidden')}
 function renderDecompose(){const listEl=document.getElementById('decomposeList');if(!listEl)return;const dupes=duplicateCards();const fragmentEl=document.getElementById('decomposeFragmentCount');const dupeEl=document.getElementById('decomposeDupeCount');const potentialEl=document.getElementById('decomposePotentialCount');if(fragmentEl)fragmentEl.textContent=state.fragments||0;if(dupeEl)dupeEl.textContent=totalDuplicateCount();if(potentialEl)potentialEl.textContent=totalPotentialFragments();if(!dupes.length){listEl.innerHTML='<div class="empty-decompose">暂无可分解的重复卡。抽到第二张及以上同名卡后，会出现在这里。</div>';return;}listEl.innerHTML=dupes.map(c=>{const count=duplicateCount(c.id);const gain=count*fragmentValue(c.rarity);return `<div class="decompose-item" data-id="${c.id}">
     <img src="${c.image}" alt="${c.name}">
     <div class="decompose-info">
@@ -230,7 +216,7 @@ function renderDecompose(){const listEl=document.getElementById('decomposeList')
   </div>`}).join('');listEl.querySelectorAll('.decompose-one-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation();decomposeCard(btn.dataset.id)}));}
 function decomposeCard(id){const c=getCard(id);const count=duplicateCount(id);if(!c||count<=0){toast('没有可分解的重复卡');return;}const gain=count*fragmentValue(c.rarity);state.cards[id]-=count;state.fragments=(state.fragments||0)+gain;state.history.unshift({id,time:Date.now(),type:'decompose',count,gain});updateAll();toast(`已分解 ${c.instrument} ×${count}，获得 ${gain} 音律碎片`)}
 function decomposeAll(){const dupes=duplicateCards();if(!dupes.length){toast('暂无可分解的重复卡');return;}let totalCards=0,totalFragments=0;dupes.forEach(c=>{const count=duplicateCount(c.id);const gain=count*fragmentValue(c.rarity);state.cards[c.id]-=count;totalCards+=count;totalFragments+=gain;});state.fragments=(state.fragments||0)+totalFragments;state.history.unshift({time:Date.now(),type:'decompose_all',count:totalCards,gain:totalFragments});updateAll();toast(`已分解 ${totalCards} 张重复卡，获得 ${totalFragments} 音律碎片`)}
-function openDetail(id){const c=getCard(id);document.getElementById('detailImage').src=c.image;const badge=document.getElementById('detailRarity');badge.textContent=c.rarityName;badge.className='detail-rarity '+rarityClass(c.rarity);document.getElementById('detailName').textContent=isOwned(c.id)?c.name:'未归藏器灵';document.getElementById('detailDesc').textContent=isOwned(c.id)?c.description:'该器灵尚未归藏，完整卡面与设定将在抽到后显示。';document.getElementById('detailInstrument').textContent=c.instrument;document.getElementById('detailTone').textContent=c.toneName;document.getElementById('detailElement').textContent=c.element;document.getElementById('detailOwned').textContent=isOwned(c.id)?`拥有 ${ownedCount(c.id)} 张`:'尚未拥有';document.getElementById('detailModal').classList.remove('hidden');playCardMusic(c.id)}
+function openDetail(id){const c=getCard(id);document.getElementById('detailImage').src=c.image;const badge=document.getElementById('detailRarity');badge.textContent=c.rarityName;badge.className='detail-rarity '+rarityClass(c.rarity);document.getElementById('detailName').textContent=isOwned(c.id)?c.name:'未归藏器灵';document.getElementById('detailDesc').textContent=isOwned(c.id)?c.description:'该器灵尚未归藏，完整卡面与设定将在抽到后显示。';document.getElementById('detailInstrument').textContent=c.instrument;document.getElementById('detailTone').textContent=c.toneName;document.getElementById('detailElement').textContent=c.element;document.getElementById('detailOwned').textContent=isOwned(c.id)?`拥有 ${ownedCount(c.id)} 张`:'尚未拥有';document.getElementById('detailModal').classList.remove('hidden')}
 function openModal(id){document.getElementById(id).classList.remove('hidden')}
 function closeModal(id){document.getElementById(id).classList.add('hidden');if(id==='detailModal')stopCardMusic()}
 // events
