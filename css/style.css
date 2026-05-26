@@ -959,3 +959,208 @@ body:before{
 .piece-hit{
   touch-action:manipulation;
 }
+
+/* ===== 方案B：手机端音频授权启动页 ===== */
+.global-card-audio{
+  position:fixed;
+  left:-9999px;
+  width:1px;
+  height:1px;
+  opacity:0;
+  pointer-events:none;
+}
+.music-toggle-btn{
+  background:linear-gradient(135deg,rgba(104,84,38,.74),rgba(40,48,38,.72)) !important;
+  border-color:rgba(240,210,130,.32) !important;
+  color:#ffe8a8 !important;
+}
+.music-toggle-btn.off{
+  background:rgba(255,255,255,.055) !important;
+  color:#cdd7d2 !important;
+}
+.music-toggle-btn.playing{
+  background:linear-gradient(135deg,#375d4d,#d9b45b) !important;
+  color:#fff6ce !important;
+  box-shadow:0 0 18px rgba(217,180,91,.22) !important;
+}
+.music-entry-gate{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:22px;
+  background:
+    radial-gradient(circle at 50% 28%,rgba(229,190,92,.22),transparent 32%),
+    radial-gradient(circle at 18% 18%,rgba(124,184,150,.16),transparent 28%),
+    linear-gradient(180deg,rgba(4,7,6,.94),rgba(8,13,12,.96));
+  backdrop-filter:blur(12px);
+  transition:opacity .26s ease, transform .26s ease;
+}
+.music-entry-gate.leaving{
+  opacity:0;
+  transform:scale(1.02);
+  pointer-events:none;
+}
+.music-entry-card{
+  position:relative;
+  width:min(520px,92vw);
+  overflow:hidden;
+  text-align:center;
+  padding:42px 30px 30px;
+  border-radius:30px;
+  border:1px solid rgba(255,225,150,.28);
+  background:
+    radial-gradient(circle at top,rgba(255,226,150,.17),transparent 36%),
+    linear-gradient(180deg,rgba(25,35,30,.96),rgba(8,13,12,.96));
+  box-shadow:0 34px 90px rgba(0,0,0,.56),0 0 34px rgba(217,180,91,.16);
+}
+.music-entry-card:before,
+.music-entry-card:after{
+  content:"";
+  position:absolute;
+  top:0;
+  width:86px;
+  height:100%;
+  opacity:.22;
+  background:linear-gradient(180deg,transparent,rgba(255,226,150,.35),transparent);
+  pointer-events:none;
+}
+.music-entry-card:before{left:0;}
+.music-entry-card:after{right:0;}
+.music-entry-seal{
+  position:relative;
+  z-index:1;
+  width:82px;
+  height:82px;
+  margin:0 auto 14px;
+  display:grid;
+  place-items:center;
+  border-radius:26px;
+  font-family:"KaiTi","STKaiti","Microsoft YaHei",serif;
+  font-size:42px;
+  font-weight:900;
+  color:#2c1706;
+  background:radial-gradient(circle,#fff2b0,#d9b45b 60%,#77421d);
+  box-shadow:0 0 26px rgba(217,180,91,.38),inset 0 0 12px rgba(80,40,10,.32);
+}
+.music-entry-kicker{
+  margin:0 0 8px;
+  color:#f4d98c;
+  font-weight:900;
+  letter-spacing:4px;
+}
+.music-entry-card h2{
+  margin:0;
+  font-family:"KaiTi","STKaiti","Microsoft YaHei",serif;
+  font-size:40px;
+  letter-spacing:5px;
+  color:#fff3d2;
+  text-shadow:0 0 18px rgba(217,180,91,.22);
+}
+.music-entry-desc{
+  max-width:420px;
+  margin:16px auto 24px;
+  color:#d6ceba;
+  line-height:1.85;
+  font-size:15px;
+}
+.music-entry-actions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.music-entry-primary,
+.music-entry-ghost{
+  border:none;
+  cursor:pointer;
+  border-radius:999px;
+  padding:13px 22px;
+  font-weight:900;
+  letter-spacing:1px;
+  transition:.2s;
+}
+.music-entry-primary{
+  color:#261800;
+  background:linear-gradient(135deg,#d1a84e,#fff0a8 58%,#c98a32);
+  box-shadow:0 14px 30px rgba(217,180,91,.25),inset 0 0 16px rgba(255,255,255,.20);
+}
+.music-entry-ghost{
+  color:#f2e7cf;
+  background:rgba(255,255,255,.075);
+  border:1px solid rgba(238,225,190,.16);
+}
+.music-entry-primary:hover,
+.music-entry-ghost:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.06);
+}
+@media(max-width:760px){
+  .music-entry-card{padding:34px 22px 26px;border-radius:26px;}
+  .music-entry-card h2{font-size:34px;letter-spacing:3px;}
+  .music-entry-desc{font-size:14px;line-height:1.75;}
+  .music-entry-actions{display:grid;grid-template-columns:1fr;}
+  .music-entry-primary,.music-entry-ghost{width:100%;}
+}
+
+/* ===== 启动页复用主视觉背景：不新增图片素材 ===== */
+.music-entry-gate{
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 226, 150, .18), transparent 28%),
+    linear-gradient(180deg, rgba(0, 0, 0, .44), rgba(0, 0, 0, .78)),
+    linear-gradient(90deg, rgba(0, 0, 0, .76), rgba(0, 0, 0, .22) 48%, rgba(0, 0, 0, .76)),
+    url('../assets/banners/main-banner.png') center center / cover no-repeat !important;
+  backdrop-filter: blur(8px) !important;
+}
+.music-entry-gate::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg, rgba(230,202,130,.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(230,202,130,.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 42%, transparent 0 22%, rgba(0,0,0,.42) 72%);
+  background-size:72px 72px, 72px 72px, auto;
+  opacity:.72;
+}
+.music-entry-gate::after{
+  content:"宫  商  角  徵  羽";
+  position:absolute;
+  left:50%;
+  top:10%;
+  transform:translateX(-50%);
+  pointer-events:none;
+  font-family:"KaiTi","STKaiti","Microsoft YaHei",serif;
+  font-size:clamp(22px, 4vw, 56px);
+  letter-spacing:clamp(12px, 2vw, 26px);
+  color:rgba(255, 232, 170, .20);
+  text-shadow:0 0 22px rgba(217,180,91,.26);
+  white-space:nowrap;
+}
+.music-entry-card{
+  background:
+    radial-gradient(circle at top, rgba(255,226,150,.24), transparent 38%),
+    linear-gradient(180deg, rgba(25,35,30,.88), rgba(8,13,12,.92)) !important;
+  border-color:rgba(255,225,150,.36) !important;
+  backdrop-filter:blur(14px) saturate(1.12) !important;
+  box-shadow:
+    0 34px 90px rgba(0,0,0,.62),
+    0 0 46px rgba(217,180,91,.20),
+    inset 0 0 0 1px rgba(255,255,255,.035) !important;
+}
+@media(max-width:760px){
+  .music-entry-gate{
+    background:
+      radial-gradient(circle at 50% 32%, rgba(255, 226, 150, .16), transparent 32%),
+      linear-gradient(180deg, rgba(0, 0, 0, .54), rgba(0, 0, 0, .82)),
+      url('../assets/banners/main-banner.png') center center / cover no-repeat !important;
+  }
+  .music-entry-gate::after{
+    top:8%;
+    font-size:24px;
+    letter-spacing:12px;
+  }
+}

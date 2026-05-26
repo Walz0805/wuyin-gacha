@@ -26,8 +26,99 @@ const CARD_AUDIO = {
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
 let currentCardAudio = null;
+let cardAudioElement = null;
+let audioUnlocked = false;
 let lastMusicGestureId = '';
 let lastMusicGestureAt = 0;
+
+function getCardAudioElement(){
+  if(!cardAudioElement){
+    cardAudioElement = document.createElement('audio');
+    cardAudioElement.preload = 'auto';
+    cardAudioElement.playsInline = true;
+    cardAudioElement.setAttribute('playsinline', '');
+    cardAudioElement.className = 'global-card-audio';
+    document.body.appendChild(cardAudioElement);
+  }
+  return cardAudioElement;
+}
+function getFirstAudioSrc(){
+  return CARD_AUDIO.jiao_dizi || Object.values(CARD_AUDIO)[0];
+}
+function unlockAudioByUserGesture(){
+  musicEnabled = true;
+  localStorage.setItem(MUSIC_KEY, 'on');
+  updateMusicToggle();
+  let ctxPromise = Promise.resolve();
+  try{
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(AudioContextClass){
+      const ctx = new AudioContextClass();
+      ctxPromise = ctx.resume ? ctx.resume().catch(()=>{}) : Promise.resolve();
+    }
+  }catch(e){}
+  const audio = getCardAudioElement();
+  audio.src = getFirstAudioSrc();
+  audio.volume = 0.001;
+  audio.muted = false;
+  currentCardAudio = audio;
+  const playPromise = audio.play();
+  const finish = () => {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = 0.92;
+    currentCardAudio = null;
+    audioUnlocked = true;
+    updateMusicToggle();
+  };
+  if(playPromise && typeof playPromise.then === 'function'){
+    return Promise.allSettled([ctxPromise, playPromise]).then(finish).catch(finish);
+  }
+  finish();
+  return Promise.resolve();
+}
+function createMusicEntryGate(){
+  if(document.getElementById('musicEntryGate')) return;
+  const gate = document.createElement('div');
+  gate.id = 'musicEntryGate';
+  gate.className = 'music-entry-gate';
+  gate.innerHTML = `
+    <div class="music-entry-card">
+      <div class="music-entry-seal">音</div>
+      <p class="music-entry-kicker">五音器灵池</p>
+      <h2>启卷入池</h2>
+      <p class="music-entry-desc">点击开启音律后，手机浏览器会把这次操作记为播放授权。之后点开已获得器灵卡，会尽量直接播放对应乐器音色。</p>
+      <div class="music-entry-actions">
+        <button id="musicEntryStart" class="music-entry-primary" type="button">开启音律 · 进入</button>
+        <button id="musicEntrySilent" class="music-entry-ghost" type="button">静音进入</button>
+      </div>
+    </div>`;
+  document.body.appendChild(gate);
+  const start = gate.querySelector('#musicEntryStart');
+  const silent = gate.querySelector('#musicEntrySilent');
+  let started = false;
+  const enterWithMusic = (e) => {
+    if(e) e.preventDefault();
+    if(started) return;
+    started = true;
+    gate.classList.add('leaving');
+    unlockAudioByUserGesture().finally(()=>{
+      setTimeout(()=>gate.remove(), 260);
+      toast('音律已开启，点已获得卡牌即可播放');
+    });
+  };
+  start.addEventListener('pointerdown', enterWithMusic, {passive:false});
+  start.addEventListener('touchstart', enterWithMusic, {passive:false});
+  start.addEventListener('click', enterWithMusic);
+  silent.addEventListener('click', ()=>{
+    musicEnabled = false;
+    localStorage.setItem(MUSIC_KEY, 'off');
+    stopCardMusic();
+    gate.classList.add('leaving');
+    setTimeout(()=>gate.remove(), 260);
+    toast('已静音进入');
+  });
+}
 
 function updateMusicToggle(){
   const btn = document.getElementById('musicToggleBtn');
@@ -45,11 +136,12 @@ function setMusicEnabled(enabled){
   else toast('音乐已开启，点已获得卡牌即可播放');
 }
 function stopCardMusic(){
-  if(currentCardAudio){
-    currentCardAudio.pause();
-    currentCardAudio.currentTime = 0;
-    currentCardAudio = null;
+  const audio = currentCardAudio || cardAudioElement;
+  if(audio){
+    audio.pause();
+    try{ audio.currentTime = 0; }catch(e){}
   }
+  currentCardAudio = null;
   updateMusicToggle();
 }
 function playCardMusic(id, options = {}){
@@ -65,10 +157,12 @@ function playCardMusic(id, options = {}){
     if(!silent) toast('这张卡暂未放入音频文件');
     return;
   }
-  const audio = new Audio();
-  audio.preload = 'auto';
+  const audio = getCardAudioElement();
+  audio.pause();
+  try{ audio.currentTime = 0; }catch(e){}
   audio.src = src;
   audio.volume = 0.92;
+  audio.muted = false;
   currentCardAudio = audio;
   const playPromise = audio.play();
   if(playPromise && typeof playPromise.catch === 'function'){
@@ -220,7 +314,7 @@ function openDetail(id){const c=getCard(id);document.getElementById('detailImage
 function openModal(id){document.getElementById(id).classList.remove('hidden')}
 function closeModal(id){document.getElementById(id).classList.add('hidden');if(id==='detailModal')stopCardMusic()}
 // events
-document.getElementById('drawOneBtn').onclick=()=>startDraw(1);document.getElementById('drawTenBtn').onclick=()=>startDraw(10);document.getElementById('againOneBtn').onclick=()=>{closeModal('resultModal');startDraw(1)};document.getElementById('againTenBtn').onclick=()=>{closeModal('resultModal');startDraw(10)};document.getElementById('openBagBtn').onclick=()=>{renderBag();openModal('bagModal')};document.getElementById('openDecomposeBtn').onclick=()=>{renderDecompose();openModal('decomposeModal')};document.getElementById('decomposeAllBtn').onclick=decomposeAll;document.getElementById('openRulesBtn').onclick=()=>openModal('rulesModal');document.getElementById('addResourceBtn').onclick=()=>{state.notes+=3200;state.tickets+=10;updateAll();toast('已补充 3200 音符与 10 张抽卡券')};document.getElementById('resetBtn').onclick=()=>{if(confirm('确认重置所有抽卡数据？')){state=structuredClone(DEFAULT_STATE);updateAll();toast('已重置存档')}};document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>closeModal(btn.dataset.close)));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.querySelectorAll('.filter-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentFilter=btn.dataset.filter;renderPreview()}));document.getElementById('bagToneFilter').onchange=renderBag;document.getElementById('bagRarityFilter').onchange=renderBag;const musicToggleButton=document.getElementById('musicToggleBtn');if(musicToggleButton){musicToggleButton.onclick=()=>setMusicEnabled(!musicEnabled)};
+document.getElementById('drawOneBtn').onclick=()=>startDraw(1);document.getElementById('drawTenBtn').onclick=()=>startDraw(10);document.getElementById('againOneBtn').onclick=()=>{closeModal('resultModal');startDraw(1)};document.getElementById('againTenBtn').onclick=()=>{closeModal('resultModal');startDraw(10)};document.getElementById('openBagBtn').onclick=()=>{renderBag();openModal('bagModal')};document.getElementById('openDecomposeBtn').onclick=()=>{renderDecompose();openModal('decomposeModal')};document.getElementById('decomposeAllBtn').onclick=decomposeAll;document.getElementById('openRulesBtn').onclick=()=>openModal('rulesModal');document.getElementById('addResourceBtn').onclick=()=>{state.notes+=3200;state.tickets+=10;updateAll();toast('已补充 3200 音符与 10 张抽卡券')};document.getElementById('resetBtn').onclick=()=>{if(confirm('确认重置所有抽卡数据？')){state=structuredClone(DEFAULT_STATE);updateAll();toast('已重置存档')}};document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>closeModal(btn.dataset.close)));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.querySelectorAll('.filter-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentFilter=btn.dataset.filter;renderPreview()}));document.getElementById('bagToneFilter').onchange=renderBag;document.getElementById('bagRarityFilter').onchange=renderBag;const musicToggleButton=document.getElementById('musicToggleBtn');if(musicToggleButton){musicToggleButton.onclick=()=>{if(musicEnabled){setMusicEnabled(false)}else{unlockAudioByUserGesture().then(()=>toast('音律已开启，点已获得卡牌即可播放'))}}};
 
 const openProgressButton = document.getElementById('openProgressBtn');
 const closeProgressButton = document.getElementById('closeProgressBtn');
@@ -234,4 +328,4 @@ if(closeProgressButton && progressPanel){
 document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && progressPanel) progressPanel.classList.remove('open');
 });
-updateMusicToggle();renderFeatured();renderBagFilters();updateAll();
+createMusicEntryGate();updateMusicToggle();renderFeatured();renderBagFilters();updateAll();
