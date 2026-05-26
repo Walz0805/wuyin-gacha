@@ -5,6 +5,45 @@ let state = loadState();
 let currentTone = null;
 let currentCardId = null;
 
+const MUSIC_KEY = 'wuyin_music_enabled_v1';
+const CARD_AUDIO = {
+  jiao_bawu: 'assets/audio/jiao_bawu.mp3',
+  jiao_dizi: 'assets/audio/jiao_dizi.mp3',
+  jiao_dongxiao: 'assets/audio/jiao_dongxiao.mp3',
+  jiao_miaodi: 'assets/audio/jiao_miaodi.mp3',
+  zhi_erhu: 'assets/audio/zhi_erhu.mp3',
+  zhi_guzheng: 'assets/audio/zhi_guzheng.mp3',
+  zhi_pipa: 'assets/audio/zhi_pipa.mp3',
+  zhi_ruan: 'assets/audio/zhi_ruan.mp3',
+  jiao_paixiao: 'assets/audio/jiao_paixiao.m4a',
+  zhi_guqin: 'assets/audio/zhi_guqin.m4a'
+};
+let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
+let currentCardAudio = null;
+
+function stopCardMusic(){
+  if(currentCardAudio){
+    currentCardAudio.pause();
+    currentCardAudio.currentTime = 0;
+    currentCardAudio = null;
+  }
+}
+function playCardMusic(id){
+  stopCardMusic();
+  if(!musicEnabled) return;
+  if(!isOwned(id)){
+    toast('未获得的卡牌不能播放音乐');
+    return;
+  }
+  const src = CARD_AUDIO[id];
+  if(!src){
+    toast('这张卡暂未放入音频文件');
+    return;
+  }
+  currentCardAudio = new Audio(src);
+  currentCardAudio.play().catch(()=>toast('音乐播放被浏览器拦截，请再点一次卡牌'));
+}
+
 const COLLECTION_IMAGES = {
   gong: 'assets/collections/gong_full.png',
   shang: 'assets/collections/shang_full.png',
@@ -342,8 +381,9 @@ function openPieceModal(id){
   const pieceModalCard = pieceModalEl ? pieceModalEl.querySelector('.piece-modal-card') : null;
   if(pieceModalEl) pieceModalEl.scrollTop = 0;
   if(pieceModalCard) pieceModalCard.scrollTop = 0;
+  playCardMusic(id);
 }
-function closePieceModal(){ document.getElementById('pieceModal').classList.add('hidden'); currentCardId=null; }
+function closePieceModal(){ document.getElementById('pieceModal').classList.add('hidden'); stopCardMusic(); currentCardId=null; }
 function unlockCard(id){
   state.cards[id] = (state.cards[id] || 0) + 1;
   state.history.unshift({id,time:Date.now(),new:state.cards[id]===1});
