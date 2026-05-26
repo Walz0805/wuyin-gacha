@@ -26,168 +26,40 @@ const CARD_AUDIO = {
 };
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
 let currentCardAudio = null;
-let cardAudioElement = null;
-let audioUnlocked = false;
-let lastMusicGestureId = '';
-let lastMusicGestureAt = 0;
-
-function getCardAudioElement(){
-  if(!cardAudioElement){
-    cardAudioElement = document.createElement('audio');
-    cardAudioElement.preload = 'auto';
-    cardAudioElement.playsInline = true;
-    cardAudioElement.setAttribute('playsinline', '');
-    cardAudioElement.className = 'global-card-audio';
-    document.body.appendChild(cardAudioElement);
-  }
-  return cardAudioElement;
-}
-function getFirstAudioSrc(){
-  return CARD_AUDIO.jiao_dizi || Object.values(CARD_AUDIO)[0];
-}
-function unlockAudioByUserGesture(){
-  musicEnabled = true;
-  localStorage.setItem(MUSIC_KEY, 'on');
-  updateMusicToggle();
-  let ctxPromise = Promise.resolve();
-  try{
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if(AudioContextClass){
-      const ctx = new AudioContextClass();
-      ctxPromise = ctx.resume ? ctx.resume().catch(()=>{}) : Promise.resolve();
-    }
-  }catch(e){}
-  const audio = getCardAudioElement();
-  audio.src = getFirstAudioSrc();
-  audio.volume = 0.001;
-  audio.muted = false;
-  currentCardAudio = audio;
-  const playPromise = audio.play();
-  const finish = () => {
-    audio.pause();
-    audio.currentTime = 0;
-    audio.volume = 0.92;
-    currentCardAudio = null;
-    audioUnlocked = true;
-    updateMusicToggle();
-  };
-  if(playPromise && typeof playPromise.then === 'function'){
-    return Promise.allSettled([ctxPromise, playPromise]).then(finish).catch(finish);
-  }
-  finish();
-  return Promise.resolve();
-}
-function createMusicEntryGate(){
-  if(document.getElementById('musicEntryGate')) return;
-  const gate = document.createElement('div');
-  gate.id = 'musicEntryGate';
-  gate.className = 'music-entry-gate';
-  gate.innerHTML = `
-    <div class="music-entry-card">
-      <div class="music-entry-seal">音</div>
-      <p class="music-entry-kicker">五音器灵池</p>
-      <h2>启卷入池</h2>
-      <p class="music-entry-desc">点击开启音律后，手机浏览器会把这次操作记为播放授权。之后点开已获得器灵卡，会尽量直接播放对应乐器音色。</p>
-      <div class="music-entry-actions">
-        <button id="musicEntryStart" class="music-entry-primary" type="button">开启音律 · 进入</button>
-        <button id="musicEntrySilent" class="music-entry-ghost" type="button">静音进入</button>
-      </div>
-    </div>`;
-  document.body.appendChild(gate);
-  const start = gate.querySelector('#musicEntryStart');
-  const silent = gate.querySelector('#musicEntrySilent');
-  let started = false;
-  const enterWithMusic = (e) => {
-    if(e) e.preventDefault();
-    if(started) return;
-    started = true;
-    gate.classList.add('leaving');
-    unlockAudioByUserGesture().finally(()=>{
-      setTimeout(()=>gate.remove(), 260);
-      toast('音律已开启，点已获得卡牌即可播放');
-    });
-  };
-  start.addEventListener('pointerdown', enterWithMusic, {passive:false});
-  start.addEventListener('touchstart', enterWithMusic, {passive:false});
-  start.addEventListener('click', enterWithMusic);
-  silent.addEventListener('click', ()=>{
-    musicEnabled = false;
-    localStorage.setItem(MUSIC_KEY, 'off');
-    stopCardMusic();
-    gate.classList.add('leaving');
-    setTimeout(()=>gate.remove(), 260);
-    toast('已静音进入');
-  });
-}
 
 function updateMusicToggle(){
   const btn = document.getElementById('musicToggleBtn');
   if(!btn) return;
-  const playing = !!currentCardAudio && !currentCardAudio.paused;
-  btn.textContent = playing ? '音乐：播放中' : (musicEnabled ? '音乐：开' : '音乐：关');
+  btn.textContent = musicEnabled ? '音乐：开' : '音乐：关';
   btn.classList.toggle('off', !musicEnabled);
-  btn.classList.toggle('playing', playing);
 }
 function setMusicEnabled(enabled){
   musicEnabled = enabled;
   localStorage.setItem(MUSIC_KEY, enabled ? 'on' : 'off');
   updateMusicToggle();
   if(!musicEnabled) stopCardMusic();
-  else toast('音乐已开启，点已获得卡牌即可播放');
 }
 function stopCardMusic(){
-  const audio = currentCardAudio || cardAudioElement;
-  if(audio){
-    audio.pause();
-    try{ audio.currentTime = 0; }catch(e){}
+  if(currentCardAudio){
+    currentCardAudio.pause();
+    currentCardAudio.currentTime = 0;
+    currentCardAudio = null;
   }
-  currentCardAudio = null;
-  updateMusicToggle();
 }
-function playCardMusic(id, options = {}){
-  const { silent = false } = options;
+function playCardMusic(id){
   stopCardMusic();
   if(!musicEnabled) return;
   if(!isOwned(id)){
-    if(!silent) toast('未获得的卡牌不能播放音乐');
+    toast('未获得的卡牌不能播放音乐');
     return;
   }
   const src = CARD_AUDIO[id];
   if(!src){
-    if(!silent) toast('这张卡暂未放入音频文件');
+    toast('这张卡暂未放入音频文件');
     return;
   }
-  const audio = getCardAudioElement();
-  audio.pause();
-  try{ audio.currentTime = 0; }catch(e){}
-  audio.src = src;
-  audio.volume = 0.92;
-  audio.muted = false;
-  currentCardAudio = audio;
-  const playPromise = audio.play();
-  if(playPromise && typeof playPromise.catch === 'function'){
-    playPromise.then(()=>updateMusicToggle()).catch(()=>{
-      if(currentCardAudio === audio) currentCardAudio = null;
-      updateMusicToggle();
-      if(!silent) toast('浏览器仍拦截音乐，请在系统浏览器中打开或再点一次卡牌');
-    });
-  }
-  audio.onended = updateMusicToggle;
-  audio.onpause = updateMusicToggle;
-}
-function playCardMusicFromGesture(id){
-  const now = Date.now();
-  if(lastMusicGestureId === id && now - lastMusicGestureAt < 420) return;
-  lastMusicGestureId = id;
-  lastMusicGestureAt = now;
-  playCardMusic(id, { silent: true });
-}
-function bindCardDetailOpen(selector){
-  document.querySelectorAll(selector).forEach(el=>{
-    el.addEventListener('pointerdown',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
-    el.addEventListener('touchstart',()=>playCardMusicFromGesture(el.dataset.id),{passive:true});
-    el.addEventListener('click',()=>openDetail(el.dataset.id));
-  });
+  currentCardAudio = new Audio(src);
+  currentCardAudio.play().catch(()=>toast('音乐播放被浏览器拦截，请再点一次卡牌'));
 }
 function loadState(){try{const raw=localStorage.getItem(STORAGE_KEY);return raw?{...DEFAULT_STATE,...JSON.parse(raw)}:structuredClone(DEFAULT_STATE)}catch(e){return structuredClone(DEFAULT_STATE)}}
 function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
@@ -207,10 +79,10 @@ function totalPotentialFragments(){return CARDS.reduce((sum,c)=>sum+duplicateCou
 function renderResources(){document.getElementById('notesCount').textContent=state.notes;document.getElementById('ticketCount').textContent=state.tickets;const fragmentEl=document.getElementById('fragmentCount');if(fragmentEl)fragmentEl.textContent=state.fragments||0;document.getElementById('pityText').textContent=`${state.pity} / 80`;document.getElementById('pityBar').style.width=`${Math.min(100,state.pity/80*100)}%`}
 function renderFeatured(){const ssr=CARDS.filter(c=>c.rarity==='SSR');document.getElementById('featuredRow').innerHTML=ssr.map(c=>`<div class="featured-chip"><b>${c.toneName}</b> · ${c.instrument}</div>`).join('')}
 function renderToneProgress(){const box=document.getElementById('toneProgress');box.innerHTML=Object.entries(TONES).map(([id,t])=>{const list=CARDS.filter(c=>c.tone===id);const owned=list.filter(c=>isOwned(c.id)).length;const pct=owned/list.length*100;return `<div class="tone-item" style="color:${t.color}"><div class="tone-row"><div class="tone-name"><i class="tone-dot"></i><span>${t.mode} · ${t.theme}</span></div><b>${owned}/${list.length}</b></div><div class="tone-bar"><span style="width:${pct}%"></span></div></div>`}).join('')}
-function renderPreview(){let list= currentFilter==='all'?CARDS:CARDS.filter(c=>c.rarity===currentFilter);document.getElementById('cardPreview').innerHTML=list.map(cardHTML).join('');bindCardDetailOpen('.preview-card')}
+function renderPreview(){let list= currentFilter==='all'?CARDS:CARDS.filter(c=>c.rarity===currentFilter);document.getElementById('cardPreview').innerHTML=list.map(cardHTML).join('');document.querySelectorAll('.preview-card').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)))}
 function cardHTML(c){const owned=isOwned(c.id);return `<div class="preview-card ${owned?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}" alt="${c.name}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${owned?`<span class="owned-badge">已拥有 ×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${owned?c.name:'？？？'}</b><span>${c.toneName} · ${c.instrument}</span></div></div>`}
 function renderBagFilters(){const sel=document.getElementById('bagToneFilter');sel.innerHTML='<option value="all">全部五音</option>'+Object.entries(TONES).map(([id,t])=>`<option value="${id}">${t.mode}</option>`).join('')}
-function renderBag(){const tone=document.getElementById('bagToneFilter').value;const rarity=document.getElementById('bagRarityFilter').value;let list=CARDS.filter(c=>(tone==='all'||c.tone===tone)&&(rarity==='all'||c.rarity===rarity));document.getElementById('bagGrid').innerHTML=list.map(c=>`<div class="bag-item ${isOwned(c.id)?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${isOwned(c.id)?`<span class="owned-badge">×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${isOwned(c.id)?c.name:'未归藏'}</b><span>${c.instrument}</span></div></div>`).join('');bindCardDetailOpen('.bag-item')}
+function renderBag(){const tone=document.getElementById('bagToneFilter').value;const rarity=document.getElementById('bagRarityFilter').value;let list=CARDS.filter(c=>(tone==='all'||c.tone===tone)&&(rarity==='all'||c.rarity===rarity));document.getElementById('bagGrid').innerHTML=list.map(c=>`<div class="bag-item ${isOwned(c.id)?'':'locked-card'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${isOwned(c.id)?`<span class="owned-badge">×${ownedCount(c.id)}</span>`:''}<div class="card-mask"><b>${isOwned(c.id)?c.name:'未归藏'}</b><span>${c.instrument}</span></div></div>`).join('');document.querySelectorAll('.bag-item').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)))}
 function updateAll(){renderResources();renderToneProgress();renderPreview();renderBag();renderDecompose();saveState()}
 function rollRarity(forceSR=false){if(state.pity>=79)return 'SSR';if(forceSR){const r=Math.random();return r<0.20?'SSR':'SR'}const r=Math.random();if(r<0.03)return 'SSR';if(r<0.15)return 'SR';if(r<0.40)return 'R';return 'N'}
 function pickCardByRarity(rarity){const pool=CARDS.filter(c=>c.rarity===rarity);return pool[Math.floor(Math.random()*pool.length)]}
@@ -298,7 +170,7 @@ function playAnimation(results){
   });
 }
 function ssrFlash(){const f=document.createElement('div');f.className='flash-ssr';document.body.appendChild(f);setTimeout(()=>f.remove(),1000)}
-function showResults(results){const modal=document.getElementById('resultModal'),grid=document.getElementById('resultGrid');grid.innerHTML=results.map(c=>`<div class="result-item ${c.isNew?'new':'dupe'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${c.isNew?'<span class="owned-badge">初得</span>':'<span class="owned-badge">重复</span>'}<div class="card-mask"><b>${c.name}</b><span>${c.instrument}</span></div></div>`).join('');bindCardDetailOpen('#resultGrid .result-item');modal.classList.remove('hidden')}
+function showResults(results){const modal=document.getElementById('resultModal'),grid=document.getElementById('resultGrid');grid.innerHTML=results.map(c=>`<div class="result-item ${c.isNew?'new':'dupe'}" data-id="${c.id}"><img src="${c.image}"><span class="rarity-badge ${rarityClass(c.rarity)}">${rarityLabel(c.rarity)}</span>${c.isNew?'<span class="owned-badge">初得</span>':'<span class="owned-badge">重复</span>'}<div class="card-mask"><b>${c.name}</b><span>${c.instrument}</span></div></div>`).join('');grid.querySelectorAll('.result-item').forEach(el=>el.addEventListener('click',()=>openDetail(el.dataset.id)));modal.classList.remove('hidden')}
 function renderDecompose(){const listEl=document.getElementById('decomposeList');if(!listEl)return;const dupes=duplicateCards();const fragmentEl=document.getElementById('decomposeFragmentCount');const dupeEl=document.getElementById('decomposeDupeCount');const potentialEl=document.getElementById('decomposePotentialCount');if(fragmentEl)fragmentEl.textContent=state.fragments||0;if(dupeEl)dupeEl.textContent=totalDuplicateCount();if(potentialEl)potentialEl.textContent=totalPotentialFragments();if(!dupes.length){listEl.innerHTML='<div class="empty-decompose">暂无可分解的重复卡。抽到第二张及以上同名卡后，会出现在这里。</div>';return;}listEl.innerHTML=dupes.map(c=>{const count=duplicateCount(c.id);const gain=count*fragmentValue(c.rarity);return `<div class="decompose-item" data-id="${c.id}">
     <img src="${c.image}" alt="${c.name}">
     <div class="decompose-info">
@@ -310,11 +182,11 @@ function renderDecompose(){const listEl=document.getElementById('decomposeList')
   </div>`}).join('');listEl.querySelectorAll('.decompose-one-btn').forEach(btn=>btn.addEventListener('click',(e)=>{e.stopPropagation();decomposeCard(btn.dataset.id)}));}
 function decomposeCard(id){const c=getCard(id);const count=duplicateCount(id);if(!c||count<=0){toast('没有可分解的重复卡');return;}const gain=count*fragmentValue(c.rarity);state.cards[id]-=count;state.fragments=(state.fragments||0)+gain;state.history.unshift({id,time:Date.now(),type:'decompose',count,gain});updateAll();toast(`已分解 ${c.instrument} ×${count}，获得 ${gain} 音律碎片`)}
 function decomposeAll(){const dupes=duplicateCards();if(!dupes.length){toast('暂无可分解的重复卡');return;}let totalCards=0,totalFragments=0;dupes.forEach(c=>{const count=duplicateCount(c.id);const gain=count*fragmentValue(c.rarity);state.cards[c.id]-=count;totalCards+=count;totalFragments+=gain;});state.fragments=(state.fragments||0)+totalFragments;state.history.unshift({time:Date.now(),type:'decompose_all',count:totalCards,gain:totalFragments});updateAll();toast(`已分解 ${totalCards} 张重复卡，获得 ${totalFragments} 音律碎片`)}
-function openDetail(id){const c=getCard(id);document.getElementById('detailImage').src=c.image;const badge=document.getElementById('detailRarity');badge.textContent=c.rarityName;badge.className='detail-rarity '+rarityClass(c.rarity);document.getElementById('detailName').textContent=isOwned(c.id)?c.name:'未归藏器灵';document.getElementById('detailDesc').textContent=isOwned(c.id)?c.description:'该器灵尚未归藏，完整卡面与设定将在抽到后显示。';document.getElementById('detailInstrument').textContent=c.instrument;document.getElementById('detailTone').textContent=c.toneName;document.getElementById('detailElement').textContent=c.element;document.getElementById('detailOwned').textContent=isOwned(c.id)?`拥有 ${ownedCount(c.id)} 张`:'尚未拥有';document.getElementById('detailModal').classList.remove('hidden')}
+function openDetail(id){const c=getCard(id);document.getElementById('detailImage').src=c.image;const badge=document.getElementById('detailRarity');badge.textContent=c.rarityName;badge.className='detail-rarity '+rarityClass(c.rarity);document.getElementById('detailName').textContent=isOwned(c.id)?c.name:'未归藏器灵';document.getElementById('detailDesc').textContent=isOwned(c.id)?c.description:'该器灵尚未归藏，完整卡面与设定将在抽到后显示。';document.getElementById('detailInstrument').textContent=c.instrument;document.getElementById('detailTone').textContent=c.toneName;document.getElementById('detailElement').textContent=c.element;document.getElementById('detailOwned').textContent=isOwned(c.id)?`拥有 ${ownedCount(c.id)} 张`:'尚未拥有';document.getElementById('detailModal').classList.remove('hidden');playCardMusic(c.id)}
 function openModal(id){document.getElementById(id).classList.remove('hidden')}
 function closeModal(id){document.getElementById(id).classList.add('hidden');if(id==='detailModal')stopCardMusic()}
 // events
-document.getElementById('drawOneBtn').onclick=()=>startDraw(1);document.getElementById('drawTenBtn').onclick=()=>startDraw(10);document.getElementById('againOneBtn').onclick=()=>{closeModal('resultModal');startDraw(1)};document.getElementById('againTenBtn').onclick=()=>{closeModal('resultModal');startDraw(10)};document.getElementById('openBagBtn').onclick=()=>{renderBag();openModal('bagModal')};document.getElementById('openDecomposeBtn').onclick=()=>{renderDecompose();openModal('decomposeModal')};document.getElementById('decomposeAllBtn').onclick=decomposeAll;document.getElementById('openRulesBtn').onclick=()=>openModal('rulesModal');document.getElementById('addResourceBtn').onclick=()=>{state.notes+=3200;state.tickets+=10;updateAll();toast('已补充 3200 音符与 10 张抽卡券')};document.getElementById('resetBtn').onclick=()=>{if(confirm('确认重置所有抽卡数据？')){state=structuredClone(DEFAULT_STATE);updateAll();toast('已重置存档')}};document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>closeModal(btn.dataset.close)));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.querySelectorAll('.filter-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentFilter=btn.dataset.filter;renderPreview()}));document.getElementById('bagToneFilter').onchange=renderBag;document.getElementById('bagRarityFilter').onchange=renderBag;const musicToggleButton=document.getElementById('musicToggleBtn');if(musicToggleButton){musicToggleButton.onclick=()=>{if(musicEnabled){setMusicEnabled(false)}else{unlockAudioByUserGesture().then(()=>toast('音律已开启，点已获得卡牌即可播放'))}}};
+document.getElementById('drawOneBtn').onclick=()=>startDraw(1);document.getElementById('drawTenBtn').onclick=()=>startDraw(10);document.getElementById('againOneBtn').onclick=()=>{closeModal('resultModal');startDraw(1)};document.getElementById('againTenBtn').onclick=()=>{closeModal('resultModal');startDraw(10)};document.getElementById('openBagBtn').onclick=()=>{renderBag();openModal('bagModal')};document.getElementById('openDecomposeBtn').onclick=()=>{renderDecompose();openModal('decomposeModal')};document.getElementById('decomposeAllBtn').onclick=decomposeAll;document.getElementById('openRulesBtn').onclick=()=>openModal('rulesModal');document.getElementById('addResourceBtn').onclick=()=>{state.notes+=3200;state.tickets+=10;updateAll();toast('已补充 3200 音符与 10 张抽卡券')};document.getElementById('resetBtn').onclick=()=>{if(confirm('确认重置所有抽卡数据？')){state=structuredClone(DEFAULT_STATE);updateAll();toast('已重置存档')}};document.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click',()=>closeModal(btn.dataset.close)));document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.querySelectorAll('.filter-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentFilter=btn.dataset.filter;renderPreview()}));document.getElementById('bagToneFilter').onchange=renderBag;document.getElementById('bagRarityFilter').onchange=renderBag;const musicToggleButton=document.getElementById('musicToggleBtn');if(musicToggleButton){musicToggleButton.onclick=()=>setMusicEnabled(!musicEnabled)};
 
 const openProgressButton = document.getElementById('openProgressBtn');
 const closeProgressButton = document.getElementById('closeProgressBtn');
@@ -328,4 +200,4 @@ if(closeProgressButton && progressPanel){
 document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && progressPanel) progressPanel.classList.remove('open');
 });
-createMusicEntryGate();updateMusicToggle();renderFeatured();renderBagFilters();updateAll();
+updateMusicToggle();renderFeatured();renderBagFilters();updateAll();
