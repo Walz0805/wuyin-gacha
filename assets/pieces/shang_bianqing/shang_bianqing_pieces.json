@@ -1,0 +1,137 @@
+[
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 1,
+    "row": 0,
+    "col": 0,
+    "bbox": [
+      0,
+      0,
+      381,
+      552
+    ],
+    "width": 381,
+    "height": 552
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 2,
+    "row": 0,
+    "col": 1,
+    "bbox": [
+      336,
+      0,
+      688,
+      518
+    ],
+    "width": 352,
+    "height": 518
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 3,
+    "row": 0,
+    "col": 2,
+    "bbox": [
+      643,
+      0,
+      1024,
+      552
+    ],
+    "width": 381,
+    "height": 552
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 4,
+    "row": 1,
+    "col": 0,
+    "bbox": [
+      0,
+      507,
+      347,
+      1030
+    ],
+    "width": 347,
+    "height": 523
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 5,
+    "row": 1,
+    "col": 1,
+    "bbox": [
+      302,
+      473,
+      723,
+      1064
+    ],
+    "width": 421,
+    "height": 591
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 6,
+    "row": 1,
+    "col": 2,
+    "bbox": [
+      677,
+      507,
+      1024,
+      1030
+    ],
+    "width": 347,
+    "height": 523
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 7,
+    "row": 2,
+    "col": 0,
+    "bbox": [
+      0,
+      985,
+      381,
+      1536
+    ],
+    "width": 381,
+    "height": 551
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 8,
+    "row": 2,
+    "col": 1,
+    "bbox": [
+      336,
+      1019,
+      688,
+      1536
+    ],
+    "width": 352,
+    "height": 517
+  },
+  {
+    "card_id": "shang_bianqing",
+    "name_cn": "编磬",
+    "piece": 9,
+    "row": 2,
+    "col": 2,
+    "bbox": [
+      643,
+      985,
+      1024,
+      1536
+    ],
+    "width": 381,
+    "height": 551
+  }
+]

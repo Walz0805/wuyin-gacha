@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>五音器灵池 · Web抽卡Demo</title>
+  <title>五音器灵池 · 拼图碎片Demo</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
         <div class="brand-mark">音</div>
         <div>
           <h1>五音器灵池</h1>
-          <p>主卡池 · 40 张传统乐器器灵</p>
+          <p>拼图碎片Demo · 5 张 SSR 角色卡</p>
         </div>
       </div>
       <div class="resources">
@@ -35,16 +35,16 @@
           <div class="banner-overlay">
             <div class="pool-tag">常驻主池</div>
             <h2>五音初醒 · 器灵召来</h2>
-            <p>抽取乐器器灵卡，点亮宫、商、角、徵、羽五音藏卷。</p>
+            <p>抽取角色卡拼图碎片，逐步点亮完整卡面。当前接入木鱼、排箫、编磬、笙、二胡。</p>
             <div class="featured-row" id="featuredRow"></div>
           </div>
         </div>
 
         <div class="draw-panel">
           <div class="pity-box">
-            <div class="label">距离天籁保底</div>
+            <div class="label">拼图收集说明</div>
             <div class="pity-line"><span id="pityBar"></span></div>
-            <p id="pityText">0 / 80</p>
+            <p id="pityText">每张角色卡 9 枚碎片，集齐后解锁完整卡。</p>
           </div>
           <div class="draw-buttons">
             <button id="drawOneBtn" class="draw-btn single"><span>一念共鸣</span><small>160 音符 / 1 券</small></button>
@@ -118,7 +118,7 @@
   <div id="bagModal" class="modal hidden">
     <div class="modal-card bag-card">
       <div class="modal-head">
-        <h3>我的卡包 / 图鉴</h3>
+        <h3>我的拼图 / 图鉴</h3>
         <button class="close-x" data-close="bagModal">×</button>
       </div>
       <div class="bag-filter">
@@ -129,25 +129,25 @@
     </div>
   </div>
 
-  <!-- 重复卡分解 -->
+  <!-- 重复碎片转化 -->
   <div id="decomposeModal" class="modal hidden">
     <div class="modal-card decompose-card">
       <div class="modal-head">
         <div>
-          <h3>重复卡分解</h3>
-          <p class="modal-subtitle">只会分解多余卡片，每张卡至少保留 1 张用于图鉴和藏卷点亮。</p>
+          <h3>重复碎片转化</h3>
+          <p class="modal-subtitle">抽到已经拥有的拼图时，会先进入这里。你可以手动分解重复碎片，兑换音律碎片。</p>
         </div>
         <button class="close-x" data-close="decomposeModal">×</button>
       </div>
 
       <div class="decompose-summary">
         <div><span>当前碎片</span><b id="decomposeFragmentCount">0</b></div>
-        <div><span>可分解重复卡</span><b id="decomposeDupeCount">0</b></div>
+        <div><span>可分解重复碎片</span><b id="decomposeDupeCount">0</b></div>
         <div><span>全部分解可得</span><b id="decomposePotentialCount">0</b></div>
       </div>
 
       <div class="decompose-actions">
-        <button id="decomposeAllBtn" class="draw-btn ten small"><span>一键分解全部重复卡</span></button>
+        <button id="decomposeAllBtn" class="draw-btn ten small"><span>一键分解全部</span></button>
       </div>
 
       <div id="decomposeList" class="decompose-list"></div>
@@ -177,11 +177,11 @@
   <div id="rulesModal" class="modal hidden">
     <div class="modal-card rules-card">
       <div class="modal-head"><h3>卡池规则</h3><button class="close-x" data-close="rulesModal">×</button></div>
-      <p>本池为一个总主卡池，不需要选择五音。每次抽取先判定品质，再从该品质的全部卡中随机获得一张。</p>
+      <p>本 Demo 为拼图碎片池。每次抽取会随机获得某张角色卡的一枚拼图碎片；集齐同一角色卡 9 枚碎片后，解锁完整角色卡。</p>
       <ul>
-        <li>天籁：3%</li><li>灵韵：12%</li><li>清音：25%</li><li>凡音：60%</li>
-        <li>十次召灵，至少获得 1 枚灵韵以上器灵。</li><li>80 次召灵内必有天籁器灵回应，获得天籁后计数重置。</li>
-        <li>重复卡会计入拥有数量，不会自动转化；可在“分解重复”入口中手动分解为音律碎片。</li>
+        <li>当前 Demo：5 张角色卡均为天籁 SSR。</li><li>每次抽取获得 1 枚随机拼图碎片。</li>
+        <li>十连会获得 10 枚拼图碎片。</li><li>重复碎片会进入分解列表，可手动分解为音律碎片；不同品质的分解数量不同。</li>
+        <li>后续扩展到 20 张角色卡时，可以继续加入 SR / R / N 概率与保底。</li>
       </ul>
     </div>
   </div>

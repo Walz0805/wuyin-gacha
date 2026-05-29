@@ -942,3 +942,143 @@ body:before{
   border-color:rgba(255,255,255,.10);
   color:#aebbb7;
 }
+
+
+/* ===== 拼图碎片 Demo：保留原主页面视觉，仅补充碎片进度表现 ===== */
+.result-item img[src*="assets/pieces"]{object-fit:contain;background:rgba(0,0,0,.36);padding:10px;}
+.detail-content p{white-space:pre-line;}
+.empty-decompose{padding:30px;text-align:center;color:#cdd7d2;border-radius:20px;border:1px dashed rgba(230,205,130,.22);background:rgba(255,255,255,.035);}
+
+
+/* ===== v-piece-fix：抽卡翻牌和抽卡详情显示单块碎片图，不裁成整卡比例 ===== */
+.flying-card .front img[src*="assets/pieces"]{
+  object-fit:contain !important;
+  background:rgba(0,0,0,.34);
+  padding:10px;
+}
+#detailModal .detail-img img[src*="assets/pieces"]{
+  object-fit:contain !important;
+  background:rgba(0,0,0,.28);
+  padding:14px;
+}
+
+/* ===== 手动分解重复碎片：禁用态与单个分解按钮 ===== */
+#decomposeAllBtn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  filter:grayscale(.25);
+  transform:none!important;
+}
+.decompose-one-btn{
+  white-space:nowrap;
+}
+
+/* ===== 抽卡动画重构：主动画 + 去重后的角色卡动画 ===== */
+.cutscene-panel{
+  position:relative;
+  z-index:3;
+  width:min(900px,90vw);
+  height:min(520px,68vh);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border-radius:34px;
+  border:1px solid rgba(230,205,130,.18);
+  background:radial-gradient(circle at center,rgba(217,180,91,.16),transparent 38%),linear-gradient(180deg,rgba(15,22,20,.78),rgba(4,7,7,.86));
+  box-shadow:0 34px 100px rgba(0,0,0,.62);
+}
+.cutscene-video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+  transition:opacity .25s ease;
+  z-index:2;
+}
+.cutscene-panel.has-video .cutscene-video{opacity:1;}
+.cutscene-panel.has-video .cutscene-fallback{opacity:0;}
+.cutscene-fallback{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:28px;
+  padding:34px;
+  transition:opacity .2s ease;
+}
+.cutscene-magic-ring{
+  position:absolute;
+  width:360px;
+  height:360px;
+  border-radius:50%;
+  border:1px solid rgba(255,232,160,.32);
+  box-shadow:0 0 42px rgba(217,180,91,.20), inset 0 0 80px rgba(120,180,150,.08);
+  animation:cutsceneRing 3.8s linear infinite;
+}
+.cutscene-magic-ring:before,
+.cutscene-magic-ring:after{
+  content:"";
+  position:absolute;
+  inset:46px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.14);
+}
+.cutscene-magic-ring:after{inset:104px;}
+.cutscene-card-img{
+  position:relative;
+  z-index:2;
+  width:240px;
+  aspect-ratio:720/1000;
+  object-fit:cover;
+  border-radius:24px;
+  box-shadow:0 26px 68px rgba(0,0,0,.55);
+  animation:cutsceneCardIn 1.2s cubic-bezier(.2,.8,.2,1) both;
+}
+.cutscene-copy{
+  position:relative;
+  z-index:2;
+  max-width:380px;
+  text-shadow:0 6px 20px rgba(0,0,0,.62);
+}
+.cutscene-kicker{
+  color:#f2d78c;
+  font-weight:900;
+  letter-spacing:4px;
+  margin-bottom:12px;
+}
+.cutscene-copy h3{
+  margin:0 0 10px;
+  font-size:42px;
+  letter-spacing:4px;
+  font-family:"KaiTi","STKaiti","Microsoft YaHei",serif;
+}
+.cutscene-copy p{
+  margin:0;
+  color:#e7dfcc;
+  line-height:1.8;
+}
+.cutscene-panel.main-ssr{
+  background:radial-gradient(circle at center,rgba(231,190,80,.24),transparent 42%),linear-gradient(180deg,rgba(44,32,16,.78),rgba(8,6,4,.90));
+}
+.cutscene-panel.main-normal{
+  background:radial-gradient(circle at center,rgba(120,180,150,.18),transparent 42%),linear-gradient(180deg,rgba(15,28,24,.78),rgba(4,7,7,.90));
+}
+@keyframes cutsceneRing{to{transform:rotate(360deg)}}
+@keyframes cutsceneCardIn{from{opacity:0;transform:translateY(46px) scale(.86) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+@media(max-width:760px){
+  .cutscene-panel{height:min(520px,70vh);border-radius:24px;}
+  .cutscene-fallback{flex-direction:column;gap:18px;padding:24px;}
+  .cutscene-card-img{width:168px;border-radius:18px;}
+  .cutscene-copy{text-align:center;}
+  .cutscene-copy h3{font-size:30px;}
+  .cutscene-magic-ring{width:280px;height:280px;}
+}
+
+/* ===== 抽卡动画已改为主动画 + 角色动画：隐藏旧五音旋转圈 ===== */
+#gachaLayer .summon-circle{
+  display:none !important;
+}

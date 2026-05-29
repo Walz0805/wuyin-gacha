@@ -130,7 +130,7 @@ body{min-height:100vh;background:
 
 
 /* ===== 拼图版修订：在当前版本上仅重做典藏拼图逻辑，其他视觉尽量不动 ===== */
-.poster-stage{aspect-ratio:1122 / 1402;}
+.poster-stage{aspect-ratio:720 / 1000;}
 .scroll-image{
   width:100%;
   height:100%;
@@ -848,4 +848,379 @@ body{min-height:100vh;background:
     font-size: 14px !important;
     line-height: 1.5 !important;
   }
+}
+
+
+/* ===== 单卡九宫拼图 Demo：沿用原典藏阁视觉，仅改为角色卡作为底图 ===== */
+.scroll-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
+.scroll-card img{object-fit:cover;object-position:center top;}
+.poster-stage{aspect-ratio:720 / 1000;}
+.scroll-image{width:100%;height:100%;object-fit:cover;filter:brightness(.34) saturate(.72);}
+.piece-svg{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible;}
+.piece-light{pointer-events:none;}
+.piece-seam{fill:none;stroke:rgba(255,246,214,.72);stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(231,201,128,.18));pointer-events:none;}
+.piece-hit{fill:rgba(255,255,255,.001);stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;cursor:pointer;pointer-events:all;}
+.piece-hit:hover{fill:rgba(255,255,255,.045);}
+.piece-label{min-width:96px;border-radius:16px;overflow:visible;}
+.piece-label.unlocked{background:linear-gradient(180deg,rgba(50,91,72,.88),rgba(18,34,29,.76));}
+.piece-lock-img{display:block;width:60px;height:60px;object-fit:contain;margin:-34px auto -4px;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));}
+.piece-label.locked-ssr .piece-lock-img{width:68px;height:68px;margin-top:-40px;}
+.piece-owned-dot{display:block;width:18px;height:18px;margin:-17px auto 4px;border-radius:50%;background:radial-gradient(circle,#e3ffe9 0,#8ee0ae 42%,rgba(60,130,95,.35) 70%);box-shadow:0 0 16px rgba(130,235,170,.5);border:1px solid rgba(220,255,230,.75);}
+#pieceModalDesc{white-space:pre-line;}
+@media(max-width:760px){.piece-lock-img{width:50px;height:50px;margin-top:-28px}.piece-label.locked-ssr .piece-lock-img{width:56px;height:56px;margin-top:-33px}.piece-label{min-width:76px;padding:7px 7px 6px}}
+
+
+/* ===== v-piece-fix：按角色卡比例显示九宫拼图，碎片弹窗显示单块图片 ===== */
+.poster-stage{aspect-ratio:720 / 1000 !important;}
+#pieceModal .modal-img-wrap img[src*="assets/pieces"]{
+  object-fit:contain !important;
+  background:rgba(0,0,0,.24);
+  padding:10px;
+}
+
+/* ===== 扬琴三维模型解锁展示：仅在完整集齐且配置模型的角色卡出现入口 ===== */
+.model-view-btn{
+  background:linear-gradient(135deg,#6f4d18,#e0b95a);
+  color:#251705;
+}
+.model-modal-card{
+  position:relative;
+  width:min(1120px,96vw);
+  max-height:92vh;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 340px;
+  overflow:hidden;
+  border:1px solid rgba(255,226,150,.28);
+  border-radius:30px;
+  background:linear-gradient(180deg,#18231f,#0d1412);
+  box-shadow:0 30px 90px rgba(0,0,0,.58),0 0 38px rgba(217,180,91,.14);
+}
+.model-viewer-wrap{
+  min-height:620px;
+  background:
+    radial-gradient(circle at center,rgba(217,180,91,.13),transparent 42%),
+    linear-gradient(180deg,#101816,#070b0a);
+}
+#cardModelViewer{
+  width:100%;
+  height:100%;
+  min-height:620px;
+  display:block;
+  background:transparent;
+}
+.model-modal-info{
+  padding:30px 26px;
+  border-left:1px solid rgba(238,225,190,.12);
+  background:rgba(8,13,12,.38);
+}
+.model-modal-info h3{
+  margin:18px 0 12px;
+  font-size:30px;
+  letter-spacing:2px;
+  font-family:"KaiTi","STKaiti","Microsoft YaHei",serif;
+}
+.model-modal-info p{
+  color:#d0c6b2;
+  line-height:1.8;
+  margin-bottom:22px;
+}
+@media(max-width:760px){
+  .model-modal-card{
+    width:94vw;
+    max-height:92vh;
+    grid-template-columns:1fr;
+    overflow:auto;
+    border-radius:24px;
+  }
+  .model-viewer-wrap,
+  #cardModelViewer{
+    min-height:420px;
+  }
+  .model-modal-info{
+    border-left:none;
+    border-top:1px solid rgba(238,225,190,.12);
+    padding:22px 20px 24px;
+  }
+  .model-modal-info h3{
+    font-size:26px;
+  }
+}
+
+/* ===== 典藏室塔罗轮盘筛选区：只影响典藏总览，不影响单卡拼图 ===== */
+.collection-wheel-section{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 310px;
+  gap:18px;
+  margin:18px 0 18px;
+  align-items:stretch;
+}
+.collection-wheel-stage{
+  position:relative;
+  min-height:560px;
+  border-radius:32px;
+  overflow:hidden;
+  border:1px solid rgba(238,225,190,.16);
+  background:
+    radial-gradient(circle at 50% 35%,rgba(217,180,91,.16),transparent 30%),
+    radial-gradient(circle at 50% 100%,rgba(125,170,140,.12),transparent 44%),
+    linear-gradient(180deg,rgba(13,20,18,.82),rgba(4,8,8,.92));
+  box-shadow:0 24px 70px rgba(0,0,0,.38);
+  touch-action:pan-y;
+}
+.collection-wheel-stage:before{
+  content:"";
+  position:absolute;
+  left:8%;right:8%;bottom:42px;height:118px;
+  border-radius:50%;
+  border-top:1px solid rgba(238,225,190,.22);
+  background:radial-gradient(ellipse at center,rgba(217,180,91,.12),transparent 68%);
+  filter:blur(.2px);
+  pointer-events:none;
+}
+.collection-wheel-cards{
+  position:absolute;
+  inset:0;
+}
+.collection-wheel-card{
+  position:absolute;
+  left:50%;
+  top:48%;
+  width:250px;
+  aspect-ratio:720/1000;
+  padding:0;
+  border:none;
+  border-radius:24px;
+  overflow:hidden;
+  background:#111;
+  cursor:pointer;
+  box-shadow:0 22px 52px rgba(0,0,0,.46);
+  transform-origin:center center;
+  transition:filter .22s ease, box-shadow .22s ease, opacity .18s ease;
+  will-change:transform, opacity;
+}
+.collection-wheel-card img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  filter:saturate(.92) brightness(.76);
+  transition:.22s ease;
+}
+.collection-wheel-card:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.08),transparent 42%,rgba(0,0,0,.50));
+  pointer-events:none;
+}
+.collection-wheel-card.is-center{
+  box-shadow:0 34px 78px rgba(0,0,0,.58),0 0 0 1px rgba(255,230,160,.38);
+}
+.collection-wheel-card.is-center img{
+  filter:saturate(1.05) brightness(.96);
+}
+.wheel-rarity{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:2;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+.wheel-progress{
+  position:absolute;
+  z-index:2;
+  left:14px;
+  right:14px;
+  bottom:14px;
+  height:8px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(255,255,255,.18);
+}
+.wheel-progress i{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--tone-color),#f2e3a4);
+}
+.collection-wheel-nav{
+  position:absolute;
+  top:50%;
+  z-index:30;
+  width:54px;
+  height:54px;
+  transform:translateY(-50%);
+  border-radius:50%;
+  border:1px solid rgba(238,225,190,.22);
+  background:rgba(0,0,0,.28);
+  color:#f6e8be;
+  font-size:42px;
+  line-height:1;
+  cursor:pointer;
+  backdrop-filter:blur(8px);
+}
+.collection-wheel-nav.prev{left:18px;}
+.collection-wheel-nav.next{right:18px;}
+.collection-wheel-empty{
+  position:absolute;
+  left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  color:#d8ceb8;
+  padding:18px 22px;
+  border-radius:18px;
+  background:rgba(0,0,0,.28);
+  border:1px dashed rgba(238,225,190,.22);
+}
+.collection-filter-panel{
+  border:1px solid rgba(238,225,190,.16);
+  border-radius:30px;
+  background:rgba(13,20,18,.80);
+  backdrop-filter:blur(12px);
+  padding:22px;
+  box-shadow:0 18px 48px rgba(0,0,0,.34);
+}
+.filter-panel-kicker{
+  color:#d9b45b;
+  font-weight:900;
+  letter-spacing:2px;
+  font-size:13px;
+  margin-bottom:8px;
+}
+.collection-filter-panel h3{
+  margin:0;
+  font-size:26px;
+  letter-spacing:2px;
+}
+.collection-filter-panel p{
+  color:#cfc5b0;
+  line-height:1.7;
+  font-size:13px;
+}
+.collection-filter-block{
+  margin-top:18px;
+}
+.collection-filter-block>span{
+  display:block;
+  margin-bottom:10px;
+  color:#f5dfaa;
+  font-weight:900;
+}
+.collection-filter-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.collection-filter-btn{
+  border:1px solid rgba(238,225,190,.16);
+  background:rgba(255,255,255,.055);
+  color:#f4ead6;
+  border-radius:999px;
+  padding:8px 12px;
+  font-weight:800;
+  cursor:pointer;
+}
+.collection-filter-btn.active{
+  background:linear-gradient(135deg,#375d4d,#7aa282);
+  border-color:rgba(180,235,200,.35);
+  color:#fff9e8;
+}
+.collection-grid-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:end;
+  gap:14px;
+  margin:22px 2px 12px;
+}
+.collection-grid-head h3{
+  margin:0;
+  font-size:24px;
+  letter-spacing:2px;
+}
+.collection-grid-head p{
+  margin:0;
+  color:#c9c0ac;
+  font-size:13px;
+}
+.collection-grid-empty{
+  grid-column:1/-1;
+  padding:36px;
+  text-align:center;
+  color:#cfc5b0;
+  border-radius:24px;
+  border:1px dashed rgba(238,225,190,.22);
+  background:rgba(255,255,255,.035);
+}
+@media(max-width:1180px){
+  .collection-wheel-section{grid-template-columns:1fr;}
+  .collection-filter-panel{order:-1;}
+}
+@media(max-width:760px){
+  .collection-wheel-stage{min-height:430px;border-radius:24px;}
+  .collection-wheel-card{width:176px;border-radius:18px;}
+  .collection-wheel-nav{width:44px;height:44px;font-size:34px;}
+  .collection-wheel-nav.prev{left:10px;}
+  .collection-wheel-nav.next{right:10px;}
+  .collection-grid-head{display:block;}
+  .collection-grid-head p{margin-top:6px;}
+}
+
+/* ===== 典藏室轮盘二次调整：半圆轨道 + 底部进入典藏按钮 ===== */
+.collection-wheel-stage{
+  min-height:620px;
+  perspective:1200px;
+  background:
+    radial-gradient(ellipse at 50% 78%,rgba(217,180,91,.12),transparent 48%),
+    radial-gradient(circle at 50% 18%,rgba(140,185,150,.08),transparent 34%),
+    linear-gradient(180deg,rgba(10,17,15,.86),rgba(3,8,8,.95)) !important;
+}
+.collection-wheel-stage:before{
+  left:10%;
+  right:10%;
+  bottom:96px;
+  height:210px;
+  border-top:1px solid rgba(238,225,190,.24);
+  border-radius:50% 50% 0 0;
+  background:radial-gradient(ellipse at center,rgba(217,180,91,.08),transparent 70%);
+}
+.collection-wheel-cards{
+  bottom:82px;
+}
+.collection-wheel-card{
+  top:39%;
+  width:280px;
+  border-radius:26px;
+  box-shadow:0 26px 62px rgba(0,0,0,.52);
+  transition:filter .22s ease, box-shadow .22s ease, opacity .18s ease;
+}
+.collection-wheel-card.is-center{
+  box-shadow:0 38px 86px rgba(0,0,0,.62),0 0 0 1px rgba(255,230,160,.38);
+}
+.collection-wheel-enter{
+  position:absolute;
+  z-index:999;
+  pointer-events:auto;
+  left:50%;
+  bottom:28px;
+  transform:translateX(-50%);
+  min-width:180px;
+  padding:13px 26px;
+  border-radius:999px;
+  box-shadow:0 16px 38px rgba(0,0,0,.36);
+}
+.collection-wheel-enter:hover{
+  transform:translateX(-50%) translateY(-1px);
+}
+.collection-wheel-enter:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  transform:translateX(-50%);
+}
+@media(max-width:760px){
+  .collection-wheel-stage{min-height:500px;}
+  .collection-wheel-card{width:190px;top:39%;}
+  .collection-wheel-stage:before{bottom:86px;height:150px;}
+  .collection-wheel-enter{bottom:22px;min-width:150px;padding:11px 20px;}
 }

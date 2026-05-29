@@ -1,467 +1,454 @@
-
-const STORAGE_KEY = 'wuyin_gacha_pool_v1';
-const DEFAULT_STATE = { notes: 3200, tickets: 6, fragments: 0, pity: 0, cards: {}, history: [] };
+const STORAGE_KEY = 'wuyin_gacha_piece_demo_v3';
+const DEFAULT_STATE = { notes: 3200, tickets: 6, fragments: 0, pity: 0, pieces: {}, duplicatePieces: {}, history: [] };
 let state = loadState();
-let currentTone = null;
 let currentCardId = null;
-
-const MUSIC_KEY = 'wuyin_music_enabled_v1';
-const CARD_AUDIO = {
-  jiao_bawu: 'assets/audio/jiao_bawu.mp3',
-  jiao_dizi: 'assets/audio/jiao_dizi.mp3',
-  jiao_dongxiao: 'assets/audio/jiao_dongxiao.mp3',
-  jiao_miaodi: 'assets/audio/jiao_miaodi.mp3',
-  zhi_erhu: 'assets/audio/zhi_erhu.mp3',
-  zhi_guzheng: 'assets/audio/zhi_guzheng.mp3',
-  zhi_pipa: 'assets/audio/zhi_pipa.mp3',
-  zhi_ruan: 'assets/audio/zhi_ruan.mp3',
-  jiao_paixiao: 'assets/audio/jiao_paixiao.m4a',
-  zhi_guqin: 'assets/audio/zhi_guqin.m4a'
-};
-let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
-let currentCardAudio = null;
-
-function stopCardMusic(){
-  if(currentCardAudio){
-    currentCardAudio.pause();
-    currentCardAudio.currentTime = 0;
-    currentCardAudio = null;
-  }
-}
-function playCardMusic(id){
-  stopCardMusic();
-  if(!musicEnabled) return;
-  if(!isOwned(id)){
-    toast('未获得的卡牌不能播放音乐');
-    return;
-  }
-  const src = CARD_AUDIO[id];
-  if(!src){
-    toast('这张卡暂未放入音频文件');
-    return;
-  }
-  currentCardAudio = new Audio(src);
-  currentCardAudio.play().catch(()=>toast('音乐播放被浏览器拦截，请再点一次卡牌'));
-}
-
-const COLLECTION_IMAGES = {
-  gong: 'assets/collections/gong_full.png',
-  shang: 'assets/collections/shang_full.png',
-  jiao: 'assets/collections/jiao_full.png',
-  zhi: 'assets/collections/zhi_full.png',
-  yu: 'assets/collections/yu_full.png'
-};
-const COLLECTION_TITLES = {
-  gong: '宫音藏卷 · 厚土礼乐图',
-  shang: '商音藏卷 · 金石清声图',
-  jiao: '角音藏卷 · 春竹生风图',
-  zhi: '徵音藏卷 · 丝弦流火图',
-  yu: '羽音藏卷 · 水月空灵图'
-};
-const COLLECTION_DESCS = {
-  gong: '厚土、祭礼、陶埙与鼓声构成的长夏藏卷。',
-  shang: '金石、礼器、青铜与霜白清光构成的肃穆藏卷。',
-  jiao: '竹林、春风、青玉与木竹吹管构成的生发藏卷。',
-  zhi: '丝弦、流火、绯红与灯影构成的热烈藏卷。',
-  yu: '水月、夜雾、冰蓝与匏竹管乐构成的空灵藏卷。'
-};
-
-const COMPLETION_REWARDS = {
-  gong: { scroll: '厚土礼乐图已完整归藏', title: '获得称号：礼乐承土', desc: '宫音归位，厚土礼声自此长鸣。' },
-  shang: { scroll: '金石清声图已完整归藏', title: '获得称号：金石清音', desc: '商音归位，钟磬之声洗尽尘嚣。' },
-  jiao: { scroll: '春竹生风图已完整归藏', title: '获得称号：竹音初醒', desc: '角音归位，春风入竹，万物始生。' },
-  zhi: { scroll: '丝弦流火图已完整归藏', title: '获得称号：弦火照夜', desc: '徵音归位，丝弦流火，照彻长夜。' },
-  yu: { scroll: '水月空灵图已完整归藏', title: '获得称号：水月听心', desc: '羽音归位，水月澄明，空灵入梦。' },
-  all: { scroll: '五音合鸣，乐藏大成', title: '获得称号：五音大成', desc: '宫、商、角、徵、羽五卷皆归，华夏乐藏终成一体。' }
-};
-
-const INSTRUMENT_LORE = {
-  gong_xun: { history:'埙是中国非常古老的吹奏乐器，多以陶土烧制而成，常见于远古礼乐与祭祀想象之中。', sound:'音色低沉、浑厚、苍凉，像从土地深处传出的回声。', scene:'适合表现大地、远古、祭礼与沉思的氛围。' },
-  gong_dagu: { history:'大鼓是重要的打击乐器，常用于礼仪、军阵、戏曲和民间庆典。', sound:'声音厚重有力，节奏感强，能迅速建立庄严或激昂的气势。', scene:'常用于祭祀、战阵、舞台开场和大型仪式场景。' },
-  gong_jiangu: { history:'建鼓是一种立鼓，常与古代礼乐制度相关，具有鲜明的仪式感。', sound:'鼓声稳重而有支撑力，像礼乐空间中的节拍支柱。', scene:'适合表现庙堂、朝会、礼制和盛大典仪。' },
-  gong_fou: { history:'缶本是陶制器物，古人可击缶为节，带有古朴的民间与先秦气息。', sound:'声音短促、朴拙、坚实，具有陶土质感。', scene:'适合表现秦地风骨、民间节奏和粗粝古意。' },
-  gong_paigu: { history:'排鼓由多面鼓组合而成，能形成丰富的节奏层次。', sound:'音响层层递进，节奏变化比单鼓更丰富。', scene:'常用于舞台、庆典和需要强烈节奏推进的场景。' },
-  gong_yu: { history:'敔是古代雅乐中的止乐器，常在乐曲结束时使用。', sound:'它不以旋律取胜，而以“止”“收束”的象征意义突出。', scene:'适合表现礼乐收束、仪式完成和秩序归位。' },
-  gong_paiban: { history:'拍板是传统戏曲、曲艺中常见的节奏乐器，用于把握板眼。', sound:'声音清脆直接，能明确提示节奏和段落。', scene:'常见于戏曲、说唱、教坊乐舞等表演环境。' },
-  gong_muyu: { history:'木鱼常见于佛教音乐和民间器乐，也可作为节奏提示。', sound:'音色空而清，节奏稳定，带有静心意味。', scene:'适合表现清修、诵念、静心和空灵秩序。' },
-
-  shang_bianzhong: { history:'编钟是中国古代青铜礼乐重器，常成组悬挂演奏。', sound:'音色宏亮、庄严、清越，具有金石之声的厚度。', scene:'适合表现宫廷礼乐、祭祀典礼和国家礼制。' },
-  shang_bianqing: { history:'编磬由石或玉制磬片组成，是古代雅乐中的金石类乐器。', sound:'音色清冷、明亮、余韵干净，如玉石相击。', scene:'适合表现清肃、礼仪、山岳和玉石意象。' },
-  shang_yunluo: { history:'云锣由多面小锣组成，排列如云，常用于传统器乐合奏。', sound:'声音清脆明亮，层层小锣形成星点般的音响。', scene:'适合表现轻盈、飞天、云上乐舞和节庆气氛。' },
-  shang_daluo: { history:'大锣在戏曲、民俗和仪式中常用于制造强烈场面转换。', sound:'音量大、穿透强，一响即可打开场面。', scene:'常见于戏曲武场、庆典和热烈民间场景。' },
-  shang_naobo: { history:'铙钹是铜制打击乐器，常用于戏曲、民间社火和宗教仪式。', sound:'声音明亮、热烈，带有金属碰击的锐利感。', scene:'适合表现节庆、社火、舞蹈和热闹人群。' },
-  shang_zheng: { history:'钲是古代金属打击乐器，也常与军旅、号令意象相关。', sound:'声音肃整、短促、有命令感。', scene:'适合表现军阵、号令、秩序和金石威严。' },
-  shang_xiaoluo: { history:'小锣是戏曲和民间合奏中的常用打击乐器。', sound:'声音轻巧、敏捷，常用于提示动作和节奏变化。', scene:'适合表现戏台转场、机敏人物和轻快节奏。' },
-  shang_fangxiang: { history:'方响是古代金属体鸣乐器，由若干金属片排列敲击发声。', sound:'音色清脆规整，有阶梯式的明亮感。', scene:'适合表现金石秩序、工匠精神和清音结构。' },
-
-  jiao_dizi: { history:'笛子是中国最具代表性的横吹竹管乐器之一，梆笛清亮，曲笛圆润。', sound:'声音明亮、流动、富有穿透力，能表现春风和山水。', scene:'常见于民乐合奏、戏曲伴奏和江南山水意境。' },
-  jiao_dongxiao: { history:'洞箫是竖吹竹管乐器，常与文人音乐、清雅审美相连。', sound:'音色低回、悠远、含蓄，带有很强的静气。', scene:'适合表现竹林、月夜、独坐和文人雅集。' },
-  jiao_chi: { history:'篪是古代横吹竹管乐器，在雅乐传统中具有古雅意味。', sound:'音色古朴、柔和，带有礼乐旧梦般的气质。', scene:'适合表现周礼、古乐、春意和雅正场景。' },
-  jiao_paixiao: { history:'排箫由长短不同的竹管或管体排列而成，是历史悠久的吹奏乐器。', sound:'音色层次分明，像山谷中逐层展开的回声。', scene:'适合表现仙童、山谷、轻灵和古代乐舞。' },
-  jiao_bawu: { history:'巴乌常见于西南民族音乐，虽形似笛，却带有簧片发声特点。', sound:'音色柔和、温暖、略带鼻音，抒情性强。', scene:'适合表现西南花影、林间小路和温柔叙事。' },
-  jiao_guanzi: { history:'管子是双簧管类传统吹奏乐器，历史悠久，常用于北方民间音乐。', sound:'音色高亢而有骨力，带有粗犷和苍劲感。', scene:'适合表现西北风沙、乐官行旅和有力的民间气息。' },
-  jiao_chiba: { history:'尺八是竖吹管乐器，与竹管清寂之声相关，在东亚音乐文化中影响深远。', sound:'音色沉静、空灵、带有呼吸感。', scene:'适合表现山林、禅意、远行和清寂空间。' },
-  jiao_miaodi: { history:'苗笛是苗族等民族音乐中的吹奏乐器，具有鲜明地域色彩。', sound:'声音轻快明亮，旋律常带有山野灵动感。', scene:'适合表现苗岭、山歌、节庆和自然风声。' },
-
-  zhi_guqin: { history:'古琴是中国文人音乐的重要代表，历史悠久，被视为修身养性的雅器。', sound:'音色含蓄、深远，重在余韵和意境。', scene:'适合表现文人独坐、山水清谈和精神修养。' },
-  zhi_pipa: { history:'琵琶是重要的弹拨乐器，唐代以来广泛流行，表现力极强。', sound:'声音颗粒感鲜明，可柔可烈，能表现战阵与抒情。', scene:'适合表现飞天乐舞、侠女、战意和繁华都市。' },
-  zhi_konghou: { history:'箜篌是古代竖琴类弹拨乐器，常带有盛唐与飞天意象。', sound:'音色华丽、透明，像流光一样展开。', scene:'适合表现宫廷乐舞、飞天、长安和梦幻场景。' },
-  zhi_guzheng: { history:'古筝是中国常见弹拨乐器，弦多而音域宽广。', sound:'音色明亮流畅，既能表现水波，也能表现激烈段落。', scene:'适合表现丝乐、夜宴、江河和舞台独奏。' },
-  zhi_se: { history:'瑟是古代弦乐器，常与琴并称，具有礼乐与典雅意味。', sound:'音色庄重、宽厚，带有华丽而古老的气息。', scene:'适合表现古礼、贵族宴乐和庄严叙事。' },
-  zhi_ruan: { history:'阮是圆形琴身的弹拨乐器，常与魏晋风度和文人意象相连。', sound:'音色温润、圆融，节奏表现灵活。', scene:'适合表现竹林、月下、酒意和闲适人物。' },
-  zhi_erhu: { history:'二胡是中国代表性拉弦乐器，近现代民族音乐中非常常见。', sound:'音色接近人声，哀婉、深情、富有叙事性。', scene:'适合表现人间悲喜、夜色、街巷和情感独白。' },
-  zhi_matouqin: { history:'马头琴是蒙古族代表性拉弦乐器，琴首常作马头形。', sound:'音色辽阔、浑厚，像草原上的长风。', scene:'适合表现草原、星夜、马群和远方。' },
-
-  yu_suona: { history:'唢呐是高亢响亮的双簧管类乐器，广泛用于民间礼俗。', sound:'声音极具穿透力，热烈、直接、情绪浓烈。', scene:'适合表现婚丧礼俗、民间庆典和强烈戏剧转折。' },
-  yu_sheng: { history:'笙是簧管乐器，可同时发出多个音，是古代重要和声性乐器。', sound:'音色明亮而温润，像气息托起的光。', scene:'适合表现凤翼、仙乐、宫廷和水月空间。' },
-  yu_yu: { history:'竽是古代簧管乐器，形制较大，常见于先秦两汉礼乐想象。', sound:'声音厚而远，有群音汇聚的效果。', scene:'适合表现朝堂、古殿和宏大的礼乐场景。' },
-  yu_hulusi: { history:'葫芦丝是西南地区常见簧管乐器，以葫芦作共鸣体。', sound:'音色柔美、婉转、亲切，辨识度很高。', scene:'适合表现水边、白衣少女、民歌和温柔夜色。' },
-  yu_lusheng: { history:'芦笙是苗、侗等民族常见簧管乐器，与歌舞节庆密切相关。', sound:'声音明亮而有舞蹈感，常与群体节奏相连。', scene:'适合表现苗寨、银饰、舞蹈和节日广场。' },
-  yu_fengsheng: { history:'凤笙是带有凤鸟意象的笙类乐器名称，常用于诗意化的传统乐器表达。', sound:'音色轻灵、明亮，像羽光浮动。', scene:'适合表现寒羽、童子、仙鸟和清冷梦境。' },
-  yu_paisheng: { history:'排笙是多管簧乐器，音管排列更适合表现丰富和声。', sound:'声音层次较厚，能产生连续而开阔的气息。', scene:'适合表现水桥、层叠水声和合奏空间。' },
-  yu_mangtong: { history:'芒筒是少数民族地区的管乐器，常有低沉悠长的音响。', sound:'声音低回、朴拙、带有山谷回声。', scene:'适合表现山水、夜雾、村寨和远处呼应。' }
-};
-
+let currentPiece = null;
 const completedOnce = new Set();
+let collectionToneFilter = 'all';
+let collectionRarityFilter = 'all';
+let collectionWheelFloat = 0;
+let collectionWheelFrame = null;
+let collectionWheelMoving = false;
+const MUSIC_KEY = 'wuyin_music_enabled_v1';
+let currentCollectionAudio = null;
+function collectionMusicEnabled(){ return localStorage.getItem(MUSIC_KEY) !== 'off'; }
 
-
-
-const CANVAS = { w: 1122, h: 1402 };
-const COLS = [0, 374, 748, 1122];
-const ROWS = [0, 467.333, 934.667, 1402];
-const TAB = { width: 76, neck: 28, depth: 42 };
-
-// 3×3 九宫拼图：中间为标题区，周围八块对应 8 张卡。
-// 数据中的 pieceIndex 保持不变：
-// 1 左上, 2 上中, 3 右上, 4 左中, 5 右中, 6 左下, 7 下中, 8 右下。
-const PIECE_LAYOUT = [
-  { key: 'p1', pieceIndex: 1, row: 0, col: 0, label: { left: 16.8, top: 17.2 } },
-  { key: 'p2', pieceIndex: 2, row: 0, col: 1, label: { left: 50.0, top: 17.2 } },
-  { key: 'p3', pieceIndex: 3, row: 0, col: 2, label: { left: 83.2, top: 17.2 } },
-  { key: 'p4', pieceIndex: 4, row: 1, col: 0, label: { left: 16.8, top: 50.0 } },
-  { key: 'center', pieceIndex: 0, row: 1, col: 1, label: null, center: true },
-  { key: 'p5', pieceIndex: 5, row: 1, col: 2, label: { left: 83.2, top: 50.0 } },
-  { key: 'p6', pieceIndex: 6, row: 2, col: 0, label: { left: 16.8, top: 82.8 } },
-  { key: 'p7', pieceIndex: 7, row: 2, col: 1, label: { left: 50.0, top: 82.8 } },
-  { key: 'p8', pieceIndex: 8, row: 2, col: 2, label: { left: 83.2, top: 82.8 } }
-];
-
-const H_TABS = [
-  [ 1, -1,  1],   // top row -> middle row
-  [-1,  1, -1]    // middle row -> bottom row
-];
-const V_TABS = [
-  [ 1, -1],       // top row, between col0-1 and col1-2
-  [-1,  1],       // middle row
-  [ 1, -1]        // bottom row
-];
-
-function loadState(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : JSON.parse(JSON.stringify(DEFAULT_STATE));
-  }catch(e){
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+function stopCollectionMusic(){
+  if(currentCollectionAudio){
+    currentCollectionAudio.pause();
+    currentCollectionAudio.currentTime = 0;
+    currentCollectionAudio = null;
   }
 }
+function playCollectionAudio(src, options={}){
+  stopCollectionMusic();
+  if(!src){ toast(options.failText || '还没有配置音乐文件'); return; }
+  if(!collectionMusicEnabled()) return;
+  const audio = new Audio(src);
+  currentCollectionAudio = audio;
+  const start = Math.max(0, Number(options.start || 0));
+  const end = Number(options.end || 0);
+  audio.onerror = () => toast('音乐文件读取失败，请检查 mp3 路径是否正确');
+  audio.addEventListener('loadedmetadata',()=>{
+    if(start > 0){
+      if(Number.isFinite(audio.duration) && start >= audio.duration){
+        toast('这首音乐长度不够，当前碎片没有对应的 10 秒片段');
+        stopCollectionMusic();
+        return;
+      }
+      audio.currentTime = start;
+    }
+  },{once:true});
+  if(end > start){
+    audio.addEventListener('timeupdate',()=>{
+      if(audio.currentTime >= end) stopCollectionMusic();
+    });
+  }
+  audio.play().catch(()=>toast('浏览器拦截了播放，请再点一次播放按钮'));
+}
+function hasPieceAudio(card){ return !!(card && (card.pieceAudio || card.fullAudio)); }
+function hasFullAudio(card){ return !!(card && card.fullAudio); }
+function playPieceMusic(cardId,piece){
+  const card=getCard(cardId);
+  if(!card){ toast('角色卡不存在'); return; }
+  if(!hasPiece(cardId,piece)){ toast('获得该碎片后才能播放音乐'); return; }
+  if(card.pieceAudio || card.fullAudio){
+    const segment=Number(card.audioSegmentSeconds || 10);
+    const start=(piece-1)*segment;
+    const end=piece*segment;
+    playCollectionAudio(card.pieceAudio || card.fullAudio,{start,end,failText:'该碎片还没有配置音乐'});
+    return;
+  }
+  const key=`${cardId}_p${piece}`;
+  playCollectionAudio(CARD_AUDIO[key],{failText:'该碎片还没有配置音乐'});
+}
+function playFullMusic(cardId){
+  const card=getCard(cardId);
+  if(!card){ toast('角色卡不存在'); return; }
+  if(!isComplete(cardId)){ toast('集齐 9 个碎片后才能播放完整音乐'); return; }
+  playCollectionAudio(card.fullAudio || card.pieceAudio,{failText:'该角色卡还没有配置完整音乐'});
+}
+
+function structuredClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); return raw ? { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) } : structuredClone(DEFAULT_STATE); }catch(e){ return structuredClone(DEFAULT_STATE); } }
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-function ownedCount(id){ return state.cards[id] || 0; }
-function isOwned(id){ return ownedCount(id) > 0; }
+function ensurePieces(id){ if(!state.pieces[id]) state.pieces[id]={}; return state.pieces[id]; }
+function decomposeValueByRarity(rarity){ return (typeof DUPLICATE_PIECE_FRAGMENT_VALUES !== 'undefined' && DUPLICATE_PIECE_FRAGMENT_VALUES[rarity]) || DUPLICATE_PIECE_FRAGMENT_VALUE || 1; }
+function ensureDuplicatePieces(id){ if(!state.duplicatePieces) state.duplicatePieces={}; if(!state.duplicatePieces[id]) state.duplicatePieces[id]={}; return state.duplicatePieces[id]; }
+function addDuplicatePiece(id,piece){ const bag=ensureDuplicatePieces(id); bag[piece]=(Number(bag[piece])||0)+1; }
+function hasPiece(id,p){ return !!ensurePieces(id)[p]; }
+function ownedPiecesCount(id){ return Object.keys(ensurePieces(id)).length; }
+function isComplete(id){ return ownedPiecesCount(id) >= PIECE_COUNT; }
+function getCard(id){ return CARDS.find(c=>c.id===id); }
+function hasModel(card){ return !!(card && card.model); }
+function modelSources(card){ return [card?.model, ...(card?.modelFallbacks || [])].filter(Boolean); }
 function rarityLabel(r){ return RARITIES[r]?.name || r; }
 function rarityClass(r){ return 'rarity-' + r.toLowerCase(); }
-function toneCards(tone){ return CARDS.filter(c => c.tone === tone).sort((a,b)=>a.pieceIndex-b.pieceIndex); }
-function getCardByTonePiece(tone, pieceIndex){ return CARDS.find(c => c.tone === tone && c.pieceIndex === pieceIndex); }
-function getCard(id){ return CARDS.find(c => c.id === id); }
 function toast(msg){ const el=document.getElementById('collectionToast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('show'),2200); }
-function saveAndRender(){ saveState(); renderOverview(); if(currentTone) renderScroll(currentTone); checkGlobalCompletionReward(); }
-
-function renderOverview(){
-  const grid = document.getElementById('scrollGrid');
-  let totalOwned = 0;
-  grid.innerHTML = Object.entries(TONES).map(([toneId,t])=>{
-    const list = toneCards(toneId);
-    const owned = list.filter(c=>isOwned(c.id)).length;
-    totalOwned += owned;
-    const pct = owned / list.length * 100;
-    const completed = owned === list.length;
-    return `<article class="scroll-card" data-tone="${toneId}" style="--tone-color:${t.color}">
-      ${completed ? '<div class="completed-badge">已完成</div>' : ''}
-      <img src="${COLLECTION_IMAGES[toneId]}" alt="${COLLECTION_TITLES[toneId]}">
-      <div class="scroll-card-info">
-        <h3>${t.mode}藏卷</h3>
-        <p>${COLLECTION_TITLES[toneId].split('·')[1].trim()}</p>
-        <div class="scroll-mini-progress"><span style="width:${pct}%"></span></div>
-        <div class="scroll-card-meta"><span>${owned}/${list.length}</span><span>${completed?'完整显现':'尚有封印'}</span></div>
-      </div>
-    </article>`;
-  }).join('');
-  document.getElementById('globalProgressText').textContent = `总进度 ${totalOwned} / ${CARDS.length}`;
-  grid.querySelectorAll('.scroll-card').forEach(el=>el.addEventListener('click',()=>openScroll(el.dataset.tone)));
+function saveAndRender(){ saveState(); renderOverview(); if(currentCardId) renderScroll(currentCardId); }
+function totalOwnedPieces(){ return CARDS.reduce((s,c)=>s+ownedPiecesCount(c.id),0); }
+function collectionFilteredCards(){
+  return CARDS.filter(card =>
+    (collectionToneFilter === 'all' || card.tone === collectionToneFilter) &&
+    (collectionRarityFilter === 'all' || card.rarity === collectionRarityFilter)
+  );
 }
-
-function openScroll(toneId){
-  currentTone = toneId;
-  document.getElementById('overviewView').classList.add('hidden');
-  document.getElementById('scrollView').classList.remove('hidden');
-  renderScroll(toneId);
-  window.scrollTo({top:0,behavior:'smooth'});
+function collectionWheelCenterCard(){
+  const list=collectionFilteredCards();
+  if(!list.length) return null;
+  const centerIndex=collectionWheelMod(Math.round(collectionWheelFloat), list.length);
+  return list[centerIndex];
 }
-function closeScroll(){
-  currentTone = null;
-  document.getElementById('scrollView').classList.add('hidden');
-  document.getElementById('overviewView').classList.remove('hidden');
-  renderOverview();
-}
-
-function lockIcon(card){
-  if(card.rarity === 'SSR') return 'lock-gold.png';
-  if(card.rarity === 'SR') return 'lock-silver.png';
-  return 'lock-jade.png';
-}
-function labelText(card){
-  if(isOwned(card.id)) return {title:`${card.instrument}`, sub:'已归藏'};
-  if(card.rarity === 'SSR') return {title:'天籁未现', sub:'锁印未启'};
-  if(card.rarity === 'SR') return {title:'灵韵未启', sub:`器灵 ${String(card.pieceIndex).padStart(2,'0')}`};
-  return {title:'尚未归藏', sub:`器灵 ${String(card.pieceIndex).padStart(2,'0')}`};
-}
-
-function lineH(x1,y,x2,side,sign){
-  if(sign === 0) return `L ${x2} ${y}`;
-  const dir = sign * (side === 'top' ? -1 : 1);
-  const w = TAB.width, n = TAB.neck, d = TAB.depth;
-  const m = (x1 + x2) / 2;
-  return [
-    `L ${m - w} ${y}`,
-    `C ${m - w*0.55} ${y}, ${m - n} ${y + dir*d*0.14}, ${m - n} ${y + dir*d*0.56}`,
-    `C ${m - n} ${y + dir*d}, ${m + n} ${y + dir*d}, ${m + n} ${y + dir*d*0.56}`,
-    `C ${m + n} ${y + dir*d*0.14}, ${m + w*0.55} ${y}, ${m + w} ${y}`,
-    `L ${x2} ${y}`
-  ].join(' ');
-}
-function lineV(x,y1,y2,side,sign){
-  if(sign === 0) return `L ${x} ${y2}`;
-  const dir = sign * (side === 'left' ? -1 : 1);
-  const w = TAB.width, n = TAB.neck, d = TAB.depth;
-  const m = (y1 + y2) / 2;
-  return [
-    `L ${x} ${m - w}`,
-    `C ${x} ${m - w*0.55}, ${x + dir*d*0.14} ${m - n}, ${x + dir*d*0.56} ${m - n}`,
-    `C ${x + dir*d} ${m - n}, ${x + dir*d} ${m + n}, ${x + dir*d*0.56} ${m + n}`,
-    `C ${x + dir*d*0.14} ${m + n}, ${x} ${m + w*0.55}, ${x} ${m + w}`,
-    `L ${x} ${y2}`
-  ].join(' ');
-}
-
-function pieceSigns(row, col){
-  const top = row === 0 ? 0 : -H_TABS[row - 1][col];
-  const right = col === 2 ? 0 : V_TABS[row][col];
-  const bottom = row === 2 ? 0 : H_TABS[row][col];
-  const left = col === 0 ? 0 : -V_TABS[row][col - 1];
-  return { top, right, bottom, left };
-}
-
-function buildPiecePath(row, col){
-  const x1 = COLS[col], x2 = COLS[col + 1];
-  const y1 = ROWS[row], y2 = ROWS[row + 1];
-  const s = pieceSigns(row, col);
-  return [
-    `M ${x1} ${y1}`,
-    lineH(x1, y1, x2, 'top', s.top),
-    lineV(x2, y1, y2, 'right', s.right),
-    lineH(x2, y2, x1, 'bottom', s.bottom),
-    lineV(x1, y2, y1, 'left', s.left),
-    'Z'
-  ].join(' ');
-}
-
-const PIECE_PATHS = PIECE_LAYOUT.reduce((acc, item) => {
-  acc[item.key] = buildPiecePath(item.row, item.col);
-  return acc;
-}, {});
-
-function renderScroll(toneId){
-  const t = TONES[toneId];
-  const list = toneCards(toneId);
-  const owned = list.filter(c=>isOwned(c.id));
-  const pct = owned.length / list.length * 100;
-  document.documentElement.style.setProperty('--tone-color', t.color);
-  document.getElementById('scrollTitle').textContent = `${t.mode}藏卷`;
-  document.getElementById('scrollSubtitle').textContent = COLLECTION_TITLES[toneId].split('·')[1].trim();
-  document.getElementById('scrollProgressPill').textContent = `${owned.length} / ${list.length}`;
-  document.getElementById('scrollImage').src = COLLECTION_IMAGES[toneId];
-  document.getElementById('sideToneName').textContent = COLLECTION_TITLES[toneId];
-  document.getElementById('sideToneDesc').textContent = COLLECTION_DESCS[toneId];
-  document.getElementById('sideProgressBar').style.width = `${pct}%`;
-
-  const svg = document.getElementById('pieceSvg');
-  const href = COLLECTION_IMAGES[toneId];
-  const defs = PIECE_LAYOUT.map(item => `<clipPath id="clip-${item.key}" clipPathUnits="userSpaceOnUse"><path d="${PIECE_PATHS[item.key]}"></path></clipPath>`).join('');
-  const brightLayers = PIECE_LAYOUT.map(item => {
-    if(item.center){
-      return `<image class="piece-title" href="${href}" x="0" y="0" width="${CANVAS.w}" height="${CANVAS.h}" preserveAspectRatio="none" clip-path="url(#clip-${item.key})"></image>`;
+function syncCollectionWheelCenterInfo(){
+  const title=document.getElementById('collectionWheelTitle');
+  const meta=document.getElementById('collectionWheelMeta');
+  const enterBtn=document.getElementById('collectionWheelEnterBtn');
+  const card=collectionWheelCenterCard();
+  if(!card){
+    if(title) title.textContent='暂无匹配器灵';
+    if(meta) meta.textContent='换一个五音或品质筛选试试。';
+    if(enterBtn){
+      enterBtn.textContent='暂无可进入藏卷';
+      enterBtn.disabled=true;
+      enterBtn.removeAttribute('data-id');
+      enterBtn.removeAttribute('data-card-id');
     }
-    const card = getCardByTonePiece(toneId, item.pieceIndex);
-    if(card && isOwned(card.id)){
-      return `<image class="piece-light" href="${href}" x="0" y="0" width="${CANVAS.w}" height="${CANVAS.h}" preserveAspectRatio="none" clip-path="url(#clip-${item.key})"></image>`;
-    }
-    return '';
-  }).join('');
-  const seams = PIECE_LAYOUT.map(item => `<path class="piece-seam" d="${PIECE_PATHS[item.key]}"></path>`).join('');
-  const hits = PIECE_LAYOUT.filter(item => !item.center).map(item => {
-    const card = getCardByTonePiece(toneId, item.pieceIndex);
-    return `<path class="piece-hit" data-id="${card.id}" d="${PIECE_PATHS[item.key]}"></path>`;
-  }).join('');
-
-  svg.innerHTML = `<defs>${defs}</defs>${brightLayers}${seams}${hits}`;
-  svg.querySelectorAll('.piece-hit').forEach(p => p.addEventListener('click', ()=>openPieceModal(p.dataset.id)));
-
-  const labels = document.getElementById('pieceLabels');
-  labels.innerHTML = PIECE_LAYOUT.filter(item => !item.center).map(item => {
-    const card = getCardByTonePiece(toneId, item.pieceIndex);
-    const txt = labelText(card);
-    const cls = isOwned(card.id) ? 'unlocked' : (card.rarity==='SSR'?'locked-ssr':card.rarity==='SR'?'locked-sr':'locked-nr');
-    const icon = isOwned(card.id)
-      ? '<i class="piece-owned-dot"></i>'
-      : `<img class="piece-lock-img" src="assets/locks/${lockIcon(card)}" alt="锁">`;
-    return `<div class="piece-label ${cls}" style="left:${item.label.left}%;top:${item.label.top}%" data-id="${card.id}">${icon}<strong>${txt.title}</strong><span>${txt.sub}</span></div>`;
-  }).join('');
-  labels.querySelectorAll('.piece-label').forEach(l=>l.addEventListener('click',()=>openPieceModal(l.dataset.id)));
-
-  const rarities = ['SSR','SR','R','N'];
-  document.getElementById('rarityStat').innerHTML = rarities.map(r=>{
-    const total = list.filter(c=>c.rarity===r).length;
-    const got = list.filter(c=>c.rarity===r && isOwned(c.id)).length;
-    return `<div class="rarity-chip"><span>${rarityLabel(r)}</span><b>${got} / ${total}</b></div>`;
-  }).join('');
-
-  document.getElementById('scrollCardList').innerHTML = list.map(card=>`<div class="scroll-list-item" data-id="${card.id}">
-    <div><div class="name">${card.pieceIndex}. ${card.instrument}</div><div class="meta">${rarityLabel(card.rarity)} · ${card.role}</div></div>
-    <span class="status-dot ${isOwned(card.id)?'owned':''}">${isOwned(card.id)?'已归藏':'未归藏'}</span>
-  </div>`).join('');
-  document.querySelectorAll('.scroll-list-item').forEach(el=>el.addEventListener('click',()=>openPieceModal(el.dataset.id)));
-  checkCompletionRewards(toneId);
-}
-
-function buildLockedDesc(c){
-  if(c.rarity === 'SSR') return '天籁器灵尚未现身。完整卡面、乐器小传与音色介绍将在抽到后解锁。';
-  if(c.rarity === 'SR') return '灵韵封印尚未开启。抽到该器灵后，可查看更完整的乐器来源、音色特点与文化场景。';
-  return '该器灵尚未归藏。抽到后可查看完整乐器科普与器灵设定。';
-}
-function buildUnlockedDesc(c){
-  const lore = INSTRUMENT_LORE[c.id];
-  if(!lore) return c.description;
-  return `${c.description}
-
-【乐器小传】
-${lore.history}
-
-【音色特点】
-${lore.sound}
-
-【文化场景】
-${lore.scene}`;
-}
-function openPieceModal(id){
-  currentCardId = id;
-  const c = getCard(id);
-  const owned = isOwned(id);
-  document.getElementById('pieceModalImg').src = c.image;
-  document.getElementById('pieceModalImg').style.filter = owned ? 'none' : 'grayscale(1) brightness(.45) blur(1px)';
-  document.getElementById('pieceModalRarity').textContent = rarityLabel(c.rarity);
-  document.getElementById('pieceModalRarity').className = `modal-rarity ${rarityClass(c.rarity)}`;
-  document.getElementById('pieceModalName').textContent = owned ? c.name : (c.rarity==='SSR' ? '天籁器灵未现' : `${c.toneName}器灵 ${String(c.pieceIndex).padStart(2,'0')}`);
-  document.getElementById('pieceModalDesc').textContent = owned ? buildUnlockedDesc(c) : buildLockedDesc(c);
-  document.getElementById('pieceModalInstrument').textContent = owned ? c.instrument : '尚未公开';
-  document.getElementById('pieceModalTone').textContent = c.toneName;
-  document.getElementById('pieceModalElement').textContent = c.element;
-  document.getElementById('pieceModalOwned').textContent = owned ? `已拥有 ${ownedCount(id)} 张` : '尚未拥有';
-  document.getElementById('modalUnlockBtn').textContent = owned ? '已归藏' : '模拟抽到此卡';
-  document.getElementById('pieceModal').classList.remove('hidden');
-  const pieceModalEl = document.getElementById('pieceModal');
-  const pieceModalCard = pieceModalEl ? pieceModalEl.querySelector('.piece-modal-card') : null;
-  if(pieceModalEl) pieceModalEl.scrollTop = 0;
-  if(pieceModalCard) pieceModalCard.scrollTop = 0;
-  playCardMusic(id);
-}
-function closePieceModal(){ document.getElementById('pieceModal').classList.add('hidden'); stopCardMusic(); currentCardId=null; }
-function unlockCard(id){
-  state.cards[id] = (state.cards[id] || 0) + 1;
-  state.history.unshift({id,time:Date.now(),new:state.cards[id]===1});
-  toast(`已归藏：${getCard(id).name}`);
-  saveAndRender();
-}
-function unlockRandom(list){
-  const pool = list.filter(c=>!isOwned(c.id));
-  if(!pool.length){ toast('已全部归藏'); return; }
-  unlockCard(pool[Math.floor(Math.random()*pool.length)].id);
-}
-function unlockAll(list){
-  list.forEach(c=>{ if(!isOwned(c.id)) state.cards[c.id]=1; });
-  toast('藏卷已完整显现');
-  saveAndRender();
-}
-
-
-function rewardKey(toneId){ return `reward_scroll_${toneId}`; }
-function allRewardKey(){ return 'reward_all_wuyin'; }
-function hasReward(key){ return !!state[key]; }
-function setReward(key){ state[key] = true; saveState(); }
-function isToneComplete(toneId){
-  const list = toneCards(toneId);
-  return list.length > 0 && list.every(c => isOwned(c.id));
-}
-function isAllComplete(){
-  return Object.keys(TONES).every(toneId => isToneComplete(toneId));
-}
-function checkCompletionRewards(toneId){
-  if(!toneId) return;
-  if(isToneComplete(toneId) && !hasReward(rewardKey(toneId))){
-    setReward(rewardKey(toneId));
-    const r = COMPLETION_REWARDS[toneId];
-    showRewardModal(r.scroll, r.title, r.desc, false);
     return;
   }
-  if(isAllComplete() && !hasReward(allRewardKey())){
-    setReward(allRewardKey());
-    const r = COMPLETION_REWARDS.all;
-    showRewardModal(r.scroll, r.title, r.desc, true);
+  if(title) title.textContent=`${card.toneName} · ${card.instrument}`;
+  if(meta) meta.textContent=`${rarityLabel(card.rarity)} · 碎片 ${ownedPiecesCount(card.id)}/${PIECE_COUNT}${isComplete(card.id)?' · 完整已解锁':' · 拼图收集中'}`;
+  if(enterBtn){
+    enterBtn.textContent=`进入 ${card.instrument} 典藏`;
+    enterBtn.disabled=false;
+    // 和下方列表卡片一样：把要进入的卡 id 直接写到按钮 data-id 上。
+    // 点击时不再重新推算“当前中心卡”，避免轮盘拖拽层影响点击判断。
+    enterBtn.dataset.id=card.id;
+    enterBtn.dataset.cardId=card.id;
   }
 }
-function checkGlobalCompletionReward(){
-  if(isAllComplete() && !hasReward(allRewardKey())){
-    setReward(allRewardKey());
-    const r = COMPLETION_REWARDS.all;
-    showRewardModal(r.scroll, r.title, r.desc, true);
+function collectionWheelMod(value, len){ return ((value % len) + len) % len; }
+function collectionWheelDelta(index, center, len){
+  let d = index - collectionWheelMod(center, len);
+  if(d > len / 2) d -= len;
+  if(d < -len / 2) d += len;
+  return d;
+}
+function collectionWheelEase(t){ return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+function collectionWheelNearestFloat(index, list){
+  const len = list.length;
+  if(!len) return 0;
+  const current = collectionWheelMod(collectionWheelFloat, len);
+  let d = index - current;
+  if(d > len / 2) d -= len;
+  if(d < -len / 2) d += len;
+  return collectionWheelFloat + d;
+}
+function animateCollectionWheelTo(targetFloat, duration=720){
+  const list = collectionFilteredCards();
+  if(list.length <= 1){ collectionWheelFloat = 0; renderCollectionWheel(); return Promise.resolve(); }
+  if(collectionWheelFrame) cancelAnimationFrame(collectionWheelFrame);
+  const start = collectionWheelFloat;
+  const diff = targetFloat - start;
+  const startTime = performance.now();
+  collectionWheelMoving = true;
+  return new Promise(resolve=>{
+    function frame(now){
+      const t = Math.min(1, (now - startTime) / duration);
+      collectionWheelFloat = start + diff * collectionWheelEase(t);
+      positionCollectionWheelCards();
+      syncCollectionWheelCenterInfo();
+      if(t < 1){
+        collectionWheelFrame = requestAnimationFrame(frame);
+      }else{
+        collectionWheelFloat = targetFloat;
+        collectionWheelMoving = false;
+        collectionWheelFrame = null;
+        positionCollectionWheelCards();
+        syncCollectionWheelCenterInfo();
+        resolve();
+      }
+    }
+    collectionWheelFrame = requestAnimationFrame(frame);
+  });
+}
+function moveCollectionWheel(step){
+  const list = collectionFilteredCards();
+  if(list.length <= 1) return;
+  animateCollectionWheelTo(collectionWheelFloat + step, 760);
+}
+function setCollectionFilter(type, value){
+  if(type === 'tone') collectionToneFilter = value;
+  if(type === 'rarity') collectionRarityFilter = value;
+  collectionWheelFloat = 0;
+  renderOverview();
+}
+function renderCollectionFilters(){
+  const toneBox=document.getElementById('collectionToneFilters');
+  const rarityBox=document.getElementById('collectionRarityFilters');
+  if(toneBox){
+    const tones=[['all','全部'], ...Object.entries(TONES).map(([id,t])=>[id,t.mode])];
+    toneBox.innerHTML=tones.map(([id,label])=>`<button type="button" class="collection-filter-btn ${collectionToneFilter===id?'active':''}" data-type="tone" data-value="${id}">${label}</button>`).join('');
   }
+  if(rarityBox){
+    const rarities=[['all','全部'], ...Object.entries(RARITIES).map(([id,r])=>[id,r.name])];
+    rarityBox.innerHTML=rarities.map(([id,label])=>`<button type="button" class="collection-filter-btn ${collectionRarityFilter===id?'active':''}" data-type="rarity" data-value="${id}">${label}</button>`).join('');
+  }
+  document.querySelectorAll('.collection-filter-btn').forEach(btn=>btn.addEventListener('click',()=>setCollectionFilter(btn.dataset.type, btn.dataset.value)));
 }
-function showRewardModal(title, reward, desc, isAll){
-  const modal = document.getElementById('rewardModal');
-  if(!modal) return;
-  document.getElementById('rewardModalTitle').textContent = title;
-  document.getElementById('rewardModalReward').textContent = reward;
-  document.getElementById('rewardModalDesc').textContent = desc;
-  document.getElementById('rewardModalSeal').textContent = isAll ? '成' : '藏';
-  modal.classList.remove('hidden');
+function renderCollectionWheel(){
+  const box=document.getElementById('collectionWheelCards');
+  if(!box) return;
+  const list=collectionFilteredCards();
+  if(!list.length){
+    box.innerHTML='<div class="collection-wheel-empty">当前筛选没有角色卡</div>';
+    syncCollectionWheelCenterInfo();
+    return;
+  }
+  if(collectionWheelFloat >= list.length) collectionWheelFloat = 0;
+  if(collectionWheelFloat < 0) collectionWheelFloat = 0;
+  const len=list.length;
+  box.innerHTML=list.map((card,i)=>{
+    const pct=ownedPiecesCount(card.id)/PIECE_COUNT*100;
+    return `<button class="collection-wheel-card" type="button" data-index="${i}" data-id="${card.id}" style="--tone-color:${TONES[card.tone].color}">
+      <img src="${card.image}" alt="${card.name}">
+      <span class="wheel-rarity ${rarityClass(card.rarity)}">${rarityLabel(card.rarity)}</span>
+      <span class="wheel-progress"><i style="width:${pct}%"></i></span>
+    </button>`;
+  }).join('');
+  positionCollectionWheelCards();
+  syncCollectionWheelCenterInfo();
+  box.querySelectorAll('.collection-wheel-card').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const idx=Number(el.dataset.index);
+      const current=collectionWheelMod(Math.round(collectionWheelFloat), len);
+      if(idx === current && !collectionWheelMoving){
+        location.hash=el.dataset.id;
+        openScroll(el.dataset.id);
+      }else{
+        animateCollectionWheelTo(collectionWheelNearestFloat(idx, list), 820);
+      }
+    });
+  });
 }
-function closeRewardModal(){
-  const modal = document.getElementById('rewardModal');
-  if(modal) modal.classList.add('hidden');
+function positionCollectionWheelCards(){
+  const box=document.getElementById('collectionWheelCards');
+  if(!box) return;
+  const list=collectionFilteredCards();
+  const len=list.length;
+  if(!len) return;
+  box.querySelectorAll('.collection-wheel-card').forEach(el=>{
+    const idx=Number(el.dataset.index);
+    const d=collectionWheelDelta(idx, collectionWheelFloat, len);
+    const abs=Math.abs(d);
+    const visible=abs<=2.75 || len<=5;
+    const isMobile=window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+    const angleStep=isMobile?42:33;
+    const xRadius=isMobile?185:500;
+    const yRadius=isMobile?86:130;
+    const edgeDrop=isMobile?10:18;
+    const minScale=isMobile?.54:.48;
+    const scaleStep=isMobile?.17:.18;
+    const angle=d*angleStep;
+    const rad=angle*Math.PI/180;
+    const x=Math.sin(rad)*xRadius;
+    const y=(1-Math.cos(rad))*yRadius + Math.pow(abs,1.25)*edgeDrop;
+    const scale=Math.max(minScale,1-abs*scaleStep);
+    const rot=d*-13;
+    const opacity=visible?Math.max(isMobile?.26:.18,1-abs*.26):0;
+    el.style.transform=`translate(-50%,-50%) translateX(${x}px) translateY(${y}px) rotate(${rot}deg) scale(${scale})`;
+    el.style.opacity=String(opacity);
+    el.style.zIndex=String(100-Math.round(abs*12));
+    el.style.pointerEvents=visible?'auto':'none';
+    el.classList.toggle('is-center', abs<.5);
+  });
 }
+function enterCollectionWheelCurrent(e){
+  if(e){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const enterBtn=e?.currentTarget || document.getElementById('collectionWheelEnterBtn');
+  // 完全对齐下方罗列卡片的逻辑：按钮上有什么 data-id，就进入哪张卡。
+  const cardId=enterBtn?.dataset.id || enterBtn?.dataset.cardId;
+  if(!cardId || !getCard(cardId)) return;
+  if(collectionWheelFrame){
+    cancelAnimationFrame(collectionWheelFrame);
+    collectionWheelFrame=null;
+  }
+  collectionWheelMoving=false;
+  collectionWheelFloat=Math.round(collectionWheelFloat);
+  location.hash=cardId;
+  openScroll(cardId);
+}
+function bindCollectionWheelEvents(){
+  const stage=document.getElementById('collectionWheelStage');
+  const prev=document.getElementById('collectionWheelPrev');
+  const next=document.getElementById('collectionWheelNext');
+  const enter=document.getElementById('collectionWheelEnterBtn');
+  if(prev) prev.onclick=()=>moveCollectionWheel(-1);
+  if(next) next.onclick=()=>moveCollectionWheel(1);
+  if(enter && enter.dataset.enterBound!=='1'){
+    enter.dataset.enterBound='1';
+    enter.addEventListener('pointerdown',e=>e.stopPropagation());
+    enter.addEventListener('pointerup',e=>e.stopPropagation());
+    enter.addEventListener('click',enterCollectionWheelCurrent);
+  }
+  if(!stage || stage.dataset.bound==='1') return;
+  stage.dataset.bound='1';
+  let dragging=false, startX=0, startY=0;
+  stage.addEventListener('pointerdown',e=>{ dragging=true; startX=e.clientX; startY=e.clientY; stage.setPointerCapture?.(e.pointerId); });
+  stage.addEventListener('pointerup',e=>{ if(!dragging) return; dragging=false; const dx=e.clientX-startX; const dy=e.clientY-startY; if(Math.abs(dx)>44 && Math.abs(dx)>Math.abs(dy)) moveCollectionWheel(dx<0?1:-1); });
+  stage.addEventListener('wheel',e=>{ const delta=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY; if(Math.abs(delta)<18) return; e.preventDefault(); moveCollectionWheel(delta>0?1:-1); },{passive:false});
+}
+function renderOverview(){
+  const grid=document.getElementById('scrollGrid');
+  const list=collectionFilteredCards();
+  if(grid){
+    if(!list.length){
+      grid.innerHTML='<div class="collection-grid-empty">当前筛选没有角色卡。</div>';
+    }else{
+      grid.innerHTML=list.map(c=>{ const pct=ownedPiecesCount(c.id)/PIECE_COUNT*100; return `<article class="scroll-card" data-id="${c.id}" style="--tone-color:${TONES[c.tone].color}">
+        ${isComplete(c.id)?'<div class="completed-badge">已完成</div>':''}
+        <img src="${c.image}" alt="${c.name}">
+        <div class="scroll-card-info">
+          <h3>${c.instrument}</h3>
+          <p>${c.toneName} · ${rarityLabel(c.rarity)}</p>
+          <div class="scroll-mini-progress"><span style="width:${pct}%"></span></div>
+          <div class="scroll-card-meta"><span>${ownedPiecesCount(c.id)}/${PIECE_COUNT}</span><span>${isComplete(c.id)?'完整显现':'拼图收集中'}</span></div>
+        </div>
+      </article>`; }).join('');
+      grid.querySelectorAll('.scroll-card').forEach(el=>el.addEventListener('click',()=>openScroll(el.dataset.id)));
+    }
+  }
+  document.getElementById('globalProgressText').textContent=`总进度 ${totalOwnedPieces()} / ${CARDS.length*PIECE_COUNT}`;
+  const hint=document.getElementById('collectionGridHint');
+  if(hint) hint.textContent=`当前显示 ${list.length} 张角色卡；下方保留原来的按行按列罗列方式。`;
+  renderCollectionFilters();
+  renderCollectionWheel();
+  bindCollectionWheelEvents();
+}
+function openScroll(cardId){ currentCardId=cardId; document.getElementById('overviewView').classList.add('hidden'); document.getElementById('scrollView').classList.remove('hidden'); renderScroll(cardId); if(isComplete(cardId)){ const card=getCard(cardId); if(hasFullAudio(card)) playFullMusic(cardId); } window.scrollTo({top:0,behavior:'smooth'}); }
+function closeScroll(){ stopCollectionMusic(); currentCardId=null; document.getElementById('scrollView').classList.add('hidden'); document.getElementById('overviewView').classList.remove('hidden'); renderOverview(); }
+function lockIcon(card){ return LOCK_ICONS[card.rarity] || LOCK_ICONS.N; }
+function labelText(card, piece){ if(hasPiece(card.id,piece)) return {title:card.instrument, sub:`碎片 ${piece}/9`}; return {title:'锁印未启', sub:`第 ${piece} 块`}; }
 
-// events
-document.getElementById('backOverviewBtn').onclick = closeScroll;
-document.getElementById('pieceModalClose').onclick = closePieceModal;
-document.getElementById('modalCloseBtn2').onclick = closePieceModal;
+const CANVAS = { w: 720, h: 1000 };
+const COLS = [0, 240, 480, 720];
+const ROWS = [0, 333.333, 666.667, 1000];
+const TAB = { width: 50, neck: 18, depth: 30 };
+const PIECE_LAYOUT = [
+  { key:'p1', pieceIndex:1, row:0, col:0, label:{left:16.8, top:17.2} },
+  { key:'p2', pieceIndex:2, row:0, col:1, label:{left:50.0, top:17.2} },
+  { key:'p3', pieceIndex:3, row:0, col:2, label:{left:83.2, top:17.2} },
+  { key:'p4', pieceIndex:4, row:1, col:0, label:{left:16.8, top:50.0} },
+  { key:'p5', pieceIndex:5, row:1, col:1, label:{left:50.0, top:50.0} },
+  { key:'p6', pieceIndex:6, row:1, col:2, label:{left:83.2, top:50.0} },
+  { key:'p7', pieceIndex:7, row:2, col:0, label:{left:16.8, top:82.8} },
+  { key:'p8', pieceIndex:8, row:2, col:1, label:{left:50.0, top:82.8} },
+  { key:'p9', pieceIndex:9, row:2, col:2, label:{left:83.2, top:82.8} }
+];
+const H_TABS = [[1,-1,1],[-1,1,-1]];
+const V_TABS = [[1,-1],[-1,1],[1,-1]];
+function lineH(x1,y,x2,side,sign){ if(sign===0) return `L ${x2} ${y}`; const dir=sign*(side==='top'?-1:1), w=TAB.width, n=TAB.neck, d=TAB.depth, m=(x1+x2)/2; return [`L ${m-w} ${y}`,`C ${m-w*0.55} ${y}, ${m-n} ${y+dir*d*0.14}, ${m-n} ${y+dir*d*0.56}`,`C ${m-n} ${y+dir*d}, ${m+n} ${y+dir*d}, ${m+n} ${y+dir*d*0.56}`,`C ${m+n} ${y+dir*d*0.14}, ${m+w*0.55} ${y}, ${m+w} ${y}`,`L ${x2} ${y}`].join(' '); }
+function lineV(x,y1,y2,side,sign){ if(sign===0) return `L ${x} ${y2}`; const dir=sign*(side==='left'?-1:1), w=TAB.width, n=TAB.neck, d=TAB.depth, m=(y1+y2)/2; return [`L ${x} ${m-w}`,`C ${x} ${m-w*0.55}, ${x+dir*d*0.14} ${m-n}, ${x+dir*d*0.56} ${m-n}`,`C ${x+dir*d} ${m-n}, ${x+dir*d} ${m+n}, ${x+dir*d*0.56} ${m+n}`,`C ${x+dir*d*0.14} ${m+n}, ${x} ${m+w*0.55}, ${x} ${m+w}`,`L ${x} ${y2}`].join(' '); }
+function pieceSigns(row,col){ return { top: row===0?0:-H_TABS[row-1][col], right: col===2?0:V_TABS[row][col], bottom: row===2?0:H_TABS[row][col], left: col===0?0:-V_TABS[row][col-1] }; }
+function buildPiecePath(row,col){ const x1=COLS[col],x2=COLS[col+1],y1=ROWS[row],y2=ROWS[row+1],s=pieceSigns(row,col); return `M ${x1} ${y1} ${lineH(x1,y1,x2,'top',s.top)} ${lineV(x2,y1,y2,'right',s.right)} ${lineH(x2,y2,x1,'bottom',s.bottom)} ${lineV(x1,y2,y1,'left',s.left)} Z`; }
+const PIECE_PATHS = Object.fromEntries(PIECE_LAYOUT.map(item=>[item.key, buildPiecePath(item.row,item.col)]));
+
+function renderScroll(cardId){
+  const card=getCard(cardId), count=ownedPiecesCount(cardId), pct=count/PIECE_COUNT*100;
+  document.getElementById('scrollTitle').textContent=`${card.instrument} · 九宫拼图`;
+  document.getElementById('scrollSubtitle').textContent=`${card.toneName} · ${rarityLabel(card.rarity)} · ${card.role}`;
+  document.getElementById('scrollProgressPill').textContent=`${count} / ${PIECE_COUNT}`;
+  document.getElementById('scrollImage').src=card.image;
+  document.getElementById('sideToneName').textContent=card.name;
+  document.getElementById('sideToneDesc').textContent=card.description;
+  document.getElementById('sideProgressBar').style.width=`${pct}%`;
+  document.getElementById('rarityStat').innerHTML=`<div class="rarity-chip"><span>品质</span><b>${rarityLabel(card.rarity)}</b></div><div class="rarity-chip"><span>五音</span><b>${card.toneName}</b></div><div class="rarity-chip"><span>碎片</span><b>${count}/${PIECE_COUNT}</b></div><div class="rarity-chip"><span>完整卡</span><b>${isComplete(cardId)?'已解锁':'未解锁'}</b></div>`;
+  const modelBtn=document.getElementById('viewModelBtn'); if(modelBtn){ const show=hasModel(card)&&isComplete(cardId); modelBtn.classList.toggle('hidden',!show); modelBtn.textContent=`查看 ${card.instrument} 三维模型`; }
+  const fullMusicBtn=document.getElementById('playFullMusicBtn'); if(fullMusicBtn){ const show=hasFullAudio(card)&&isComplete(cardId); fullMusicBtn.classList.toggle('hidden',!show); fullMusicBtn.textContent=`播放 ${card.instrument} 完整音乐`; }
+  document.getElementById('scrollCardList').innerHTML=PIECE_LAYOUT.map(item=>`<div class="scroll-list-item" data-piece="${item.pieceIndex}"><div><div class="name">碎片 ${item.pieceIndex} / ${PIECE_COUNT}</div><div class="meta">${hasPiece(cardId,item.pieceIndex)?'已点亮对应区域':'尚未获得'}</div></div><span class="status-dot ${hasPiece(cardId,item.pieceIndex)?'owned':''}">${hasPiece(cardId,item.pieceIndex)?'已归藏':'未归藏'}</span></div>`).join('');
+  document.querySelectorAll('.scroll-list-item').forEach(el=>el.addEventListener('click',()=>openPieceModal(cardId, Number(el.dataset.piece))));
+  renderPuzzle(card);
+  maybeShowReward(cardId);
+}
+function renderPuzzle(card){
+  const svg=document.getElementById('pieceSvg');
+  svg.setAttribute('viewBox', `0 0 ${CANVAS.w} ${CANVAS.h}`);
+  const defs=PIECE_LAYOUT.map(item=>`<clipPath id="clip-${item.key}"><path d="${PIECE_PATHS[item.key]}"></path></clipPath>`).join('');
+  const lights=PIECE_LAYOUT.map(item=>hasPiece(card.id,item.pieceIndex)?`<image class="piece-light" href="${card.image}" x="0" y="0" width="${CANVAS.w}" height="${CANVAS.h}" preserveAspectRatio="none" clip-path="url(#clip-${item.key})"></image>`:'').join('');
+  const seams=PIECE_LAYOUT.map(item=>`<path class="piece-seam" d="${PIECE_PATHS[item.key]}"></path>`).join('');
+  const hits=PIECE_LAYOUT.map(item=>`<path class="piece-hit" data-piece="${item.pieceIndex}" d="${PIECE_PATHS[item.key]}"></path>`).join('');
+  svg.innerHTML=`<defs>${defs}</defs>${lights}${seams}${hits}`;
+  svg.querySelectorAll('.piece-hit').forEach(p=>p.addEventListener('click',()=>openPieceModal(card.id, Number(p.dataset.piece))));
+  const labels=document.getElementById('pieceLabels');
+  labels.innerHTML=PIECE_LAYOUT.map(item=>{ const owned=hasPiece(card.id,item.pieceIndex), txt=labelText(card,item.pieceIndex); const cls=owned?'unlocked':(card.rarity==='SSR'?'locked-ssr':card.rarity==='SR'?'locked-sr':'locked-nr'); const icon=owned?'<i class="piece-owned-dot"></i>':`<img class="piece-lock-img" src="${lockIcon(card)}" alt="锁">`; return `<div class="piece-label ${cls}" style="left:${item.label.left}%;top:${item.label.top}%" data-piece="${item.pieceIndex}">${icon}<strong>${txt.title}</strong><span>${txt.sub}</span></div>`; }).join('');
+  labels.querySelectorAll('.piece-label').forEach(l=>l.addEventListener('click',()=>openPieceModal(card.id, Number(l.dataset.piece))));
+}
+function openPieceModal(cardId,piece){
+  currentCardId=cardId; currentPiece=piece; const c=getCard(cardId), owned=hasPiece(cardId,piece);
+  const modalImg=document.getElementById('pieceModalImg');
+  modalImg.onerror=()=>{ modalImg.onerror=null; modalImg.src=c.image; };
+  modalImg.src=pieceImage(c.id,piece);
+  modalImg.style.filter=owned?'none':'grayscale(1) brightness(.45) blur(1px)';
+  const badge=document.getElementById('pieceModalRarity'); badge.textContent=rarityLabel(c.rarity); badge.className=`modal-rarity ${rarityClass(c.rarity)}`;
+  document.getElementById('pieceModalName').textContent=`${c.instrument} · 碎片 ${piece}/${PIECE_COUNT}`;
+  document.getElementById('pieceModalDesc').textContent=owned?`${c.description}\n\n该碎片已获得，对应卡面区域已点亮。${hasPieceAudio(c)?`\n点击“播放碎片音乐”会播放完整扬琴曲的第 ${(piece-1)*Number(c.audioSegmentSeconds||10)}-${piece*Number(c.audioSegmentSeconds||10)} 秒。`:`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`:`该碎片尚未获得，卡面上会显示锁印。${hasPieceAudio(c)?'\n获得该碎片后可播放对应 10 秒音乐片段。':`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`;
+  document.getElementById('pieceModalInstrument').textContent=c.instrument;
+  document.getElementById('pieceModalTone').textContent=c.toneName;
+  document.getElementById('pieceModalElement').textContent=rarityLabel(c.rarity);
+  document.getElementById('pieceModalOwned').textContent=owned?'已获得该碎片':'尚未获得';
+  document.getElementById('modalUnlockBtn').textContent=owned?'已归藏':'模拟获得该碎片';
+  const pieceMusicBtn=document.getElementById('modalPlayMusicBtn');
+  if(pieceMusicBtn){
+    const showMusic=hasPieceAudio(c);
+    pieceMusicBtn.classList.toggle('hidden',!showMusic);
+    pieceMusicBtn.disabled=!owned;
+    pieceMusicBtn.textContent=owned?'播放碎片音乐':'未获得不可播放';
+  }
+  document.getElementById('pieceModal').classList.remove('hidden');
+  if(owned && hasPieceAudio(c)) playPieceMusic(cardId,piece);
+}
+function closePieceModal(){ document.getElementById('pieceModal').classList.add('hidden'); stopCollectionMusic(); }
+function unlockPiece(cardId,piece){ const card=getCard(cardId); if(hasPiece(cardId,piece)){ addDuplicatePiece(cardId,piece); toast(`重复碎片已进入分解列表，每个可分解 ${decomposeValueByRarity(card.rarity)} 音律碎片`); }else{ ensurePieces(cardId)[piece]=true; toast(`已点亮 ${card.instrument} · 碎片 ${piece}`); } saveAndRender(); }
+function unlockRandom(listOrCardId){ let cardId = typeof listOrCardId === 'string' ? listOrCardId : CARDS[Math.floor(Math.random()*CARDS.length)].id; const p=Math.floor(Math.random()*PIECE_COUNT)+1; unlockPiece(cardId,p); }
+function unlockAll(cardId){ for(let p=1;p<=PIECE_COUNT;p++) ensurePieces(cardId)[p]=true; saveAndRender(); toast('本卡九宫拼图已全部点亮'); }
+function maybeShowReward(cardId){ if(!isComplete(cardId) || completedOnce.has(cardId)) return; completedOnce.add(cardId); const card=getCard(cardId); document.getElementById('rewardModalTitle').textContent=`${card.instrument} 完整角色卡已解锁`; document.getElementById('rewardModalReward').textContent=`获得完整角色卡：${card.name}`; document.getElementById('rewardModalDesc').textContent=hasModel(card)?'九枚拼图已经归位，完整卡面显现。该角色卡的三维模型也已解锁，可在右侧按钮查看。':'九枚拼图已经归位，完整卡面显现。'; document.getElementById('rewardModal').classList.remove('hidden'); }
+
+function openModelModal(cardId){
+  const card=getCard(cardId);
+  if(!hasModel(card)){ toast('该角色卡暂未接入三维模型'); return; }
+  if(!isComplete(cardId)){ toast('集齐 9 个碎片后解锁三维模型'); return; }
+  const viewer=document.getElementById('cardModelViewer');
+  const sources=modelSources(card);
+  if(viewer){ viewer.dataset.sources=JSON.stringify(sources); viewer.dataset.sourceIndex='0'; viewer.setAttribute('src',sources[0]); viewer.setAttribute('alt',card.modelAlt || `${card.instrument} 三维模型`); }
+  document.getElementById('modelModalTitle').textContent=`${card.instrument} 三维模型`;
+  document.getElementById('modelModalDesc').textContent=`${card.name} 已集齐九枚拼图，三维模型已解锁。可拖动旋转、滚轮缩放，手机端可双指缩放查看。`;
+  document.getElementById('modelModal').classList.remove('hidden');
+}
+function closeModelModal(){ const modal=document.getElementById('modelModal'); if(modal) modal.classList.add('hidden'); const viewer=document.getElementById('cardModelViewer'); if(viewer) viewer.removeAttribute('src'); stopCollectionMusic(); }
+function handleModelError(){ const viewer=document.getElementById('cardModelViewer'); if(!viewer) return; let sources=[]; try{ sources=JSON.parse(viewer.dataset.sources || '[]'); }catch(e){ sources=[]; } const idx=Number(viewer.dataset.sourceIndex || 0); const next=idx+1; if(sources[next]){ viewer.dataset.sourceIndex=String(next); viewer.setAttribute('src',sources[next]); }else{ toast('模型文件未找到，请把扬琴 GLB 放到 assets/models/zhi_yangqin.glb'); } }
+
+function checkGlobalCompletionReward(){}
+
+document.getElementById('backOverviewBtn').onclick=closeScroll;
+document.getElementById('pieceModalClose').onclick=closePieceModal;
+document.getElementById('modalCloseBtn2').onclick=closePieceModal;
 document.getElementById('pieceModal').addEventListener('click',e=>{ if(e.target.id==='pieceModal') closePieceModal(); });
-document.getElementById('rewardModalClose').onclick = closeRewardModal;
-document.getElementById('rewardModalOk').onclick = closeRewardModal;
-document.getElementById('rewardModal').addEventListener('click',e=>{ if(e.target.id==='rewardModal') closeRewardModal(); });
-document.getElementById('modalUnlockBtn').onclick = ()=>{ if(currentCardId && !isOwned(currentCardId)){ unlockCard(currentCardId); openPieceModal(currentCardId); } };
-document.getElementById('demoDrawBtn').onclick = ()=>unlockRandom(CARDS);
-document.getElementById('demoAllBtn').onclick = ()=>unlockAll(CARDS);
-document.getElementById('demoResetBtn').onclick = ()=>{ if(confirm('确认重置全部抽卡与典藏数据？')){ state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveAndRender(); toast('已重置典藏进度'); } };
-document.getElementById('unlockOneToneBtn').onclick = ()=>{ if(currentTone) unlockRandom(toneCards(currentTone)); };
-document.getElementById('unlockToneAllBtn').onclick = ()=>{ if(currentTone) unlockAll(toneCards(currentTone)); };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePieceModal(); });
-
+document.getElementById('rewardModalClose').onclick=()=>document.getElementById('rewardModal').classList.add('hidden');
+document.getElementById('rewardModalOk').onclick=()=>document.getElementById('rewardModal').classList.add('hidden');
+document.getElementById('modelModalClose').onclick=closeModelModal;
+document.getElementById('modelModalOk').onclick=closeModelModal;
+document.getElementById('modelModal').addEventListener('click',e=>{ if(e.target.id==='modelModal') closeModelModal(); });
+const cardModelViewer=document.getElementById('cardModelViewer'); if(cardModelViewer) cardModelViewer.addEventListener('error',handleModelError);
+document.getElementById('modalUnlockBtn').onclick=()=>{ if(currentCardId&&currentPiece&&!hasPiece(currentCardId,currentPiece)){ unlockPiece(currentCardId,currentPiece); openPieceModal(currentCardId,currentPiece); } };
+document.getElementById('modalPlayMusicBtn').onclick=()=>{ if(currentCardId&&currentPiece) playPieceMusic(currentCardId,currentPiece); };
+document.getElementById('demoDrawBtn').onclick=()=>unlockRandom(CARDS);
+document.getElementById('demoAllBtn').onclick=()=>{ CARDS.forEach(c=>{ for(let p=1;p<=PIECE_COUNT;p++) ensurePieces(c.id)[p]=true; }); saveAndRender(); toast('全部角色卡拼图已点亮'); };
+document.getElementById('demoResetBtn').onclick=()=>{ if(confirm('确认重置典藏进度？')){ state=structuredClone(DEFAULT_STATE); saveState(); closeScroll(); renderOverview(); toast('已重置演示进度'); } };
+document.getElementById('unlockOneToneBtn').onclick=()=>{ if(currentCardId) unlockRandom(currentCardId); };
+document.getElementById('unlockToneAllBtn').onclick=()=>{ if(currentCardId) unlockAll(currentCardId); };
+document.getElementById('viewModelBtn').onclick=()=>{ if(currentCardId) openModelModal(currentCardId); };
+document.getElementById('playFullMusicBtn').onclick=()=>{ if(currentCardId) playFullMusic(currentCardId); };
 renderOverview();
+if(location.hash){ const id=location.hash.replace('#',''); if(getCard(id)) openScroll(id); }
