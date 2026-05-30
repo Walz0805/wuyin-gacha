@@ -1400,3 +1400,34 @@ body:before{
 .cutscene-card-img.rarity-cutscene-sr{
   box-shadow:0 0 0 1px rgba(225,235,255,.78),0 0 36px rgba(190,210,255,.48),0 26px 68px rgba(0,0,0,.55);
 }
+
+/* ===== 手机端首屏高度微调：缩短主视觉，让抽卡按钮更早进入视野 ===== */
+@media(max-width:760px){
+  .banner{
+    min-height:clamp(455px,62vh,535px) !important;
+    padding:16px 15px 16px !important;
+    background:#07100d url('../assets/banners/mobile-banner.png') center 42%/cover no-repeat !important;
+  }
+  .banner h2{
+    font-size:32px !important;
+    line-height:1.12 !important;
+    margin-bottom:7px !important;
+  }
+  .banner p{
+    font-size:14px !important;
+    line-height:1.55 !important;
+    -webkit-line-clamp:2 !important;
+  }
+  .draw-panel{
+    margin-top:10px !important;
+  }
+}
+@media(max-width:390px){
+  .banner{
+    min-height:clamp(430px,60vh,500px) !important;
+    padding:14px 14px 15px !important;
+  }
+  .banner h2{
+    font-size:29px !important;
+  }
+}
