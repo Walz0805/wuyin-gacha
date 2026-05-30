@@ -393,7 +393,7 @@ function openPieceModal(cardId,piece){
   modalImg.style.filter=owned?'none':'grayscale(1) brightness(.45) blur(1px)';
   const badge=document.getElementById('pieceModalRarity'); badge.textContent=rarityLabel(c.rarity); badge.className=`modal-rarity ${rarityClass(c.rarity)}`;
   document.getElementById('pieceModalName').textContent=`${c.instrument} · 碎片 ${piece}/${PIECE_COUNT}`;
-  document.getElementById('pieceModalDesc').textContent=owned?`${c.description}\n\n该碎片已获得，对应卡面区域已点亮。${hasPieceAudio(c)?`\n点击“播放碎片音乐”会播放完整扬琴曲的第 ${(piece-1)*Number(c.audioSegmentSeconds||10)}-${piece*Number(c.audioSegmentSeconds||10)} 秒。`:`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`:`该碎片尚未获得，卡面上会显示锁印。${hasPieceAudio(c)?'\n获得该碎片后可播放对应 10 秒音乐片段。':`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`;
+  document.getElementById('pieceModalDesc').textContent=owned?`${c.description}\n\n该碎片已获得，对应卡面区域已点亮。${hasPieceAudio(c)?`\n点击“播放碎片音乐”会播放该角色音乐的第 ${(piece-1)*Number(c.audioSegmentSeconds||10)}-${piece*Number(c.audioSegmentSeconds||10)} 秒。`:`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`:`该碎片尚未获得，卡面上会显示锁印。${hasPieceAudio(c)?'\n获得该碎片后可播放对应 10 秒音乐片段。':`\n音乐片段路径建议：assets/audio/${c.id}_p${piece}.mp3`}`;
   document.getElementById('pieceModalInstrument').textContent=c.instrument;
   document.getElementById('pieceModalTone').textContent=c.toneName;
   document.getElementById('pieceModalElement').textContent=rarityLabel(c.rarity);
@@ -427,7 +427,7 @@ function openModelModal(cardId){
   document.getElementById('modelModal').classList.remove('hidden');
 }
 function closeModelModal(){ const modal=document.getElementById('modelModal'); if(modal) modal.classList.add('hidden'); const viewer=document.getElementById('cardModelViewer'); if(viewer) viewer.removeAttribute('src'); stopCollectionMusic(); }
-function handleModelError(){ const viewer=document.getElementById('cardModelViewer'); if(!viewer) return; let sources=[]; try{ sources=JSON.parse(viewer.dataset.sources || '[]'); }catch(e){ sources=[]; } const idx=Number(viewer.dataset.sourceIndex || 0); const next=idx+1; if(sources[next]){ viewer.dataset.sourceIndex=String(next); viewer.setAttribute('src',sources[next]); }else{ toast('模型文件未找到，请把扬琴 GLB 放到 assets/models/zhi_yangqin.glb'); } }
+function handleModelError(){ const viewer=document.getElementById('cardModelViewer'); if(!viewer) return; let sources=[]; try{ sources=JSON.parse(viewer.dataset.sources || '[]'); }catch(e){ sources=[]; } const idx=Number(viewer.dataset.sourceIndex || 0); const next=idx+1; if(sources[next]){ viewer.dataset.sourceIndex=String(next); viewer.setAttribute('src',sources[next]); }else{ toast('模型文件未找到，请把对应 GLB 放到 data.js 里配置的 assets/models 路径'); } }
 
 function checkGlobalCompletionReward(){}
 
