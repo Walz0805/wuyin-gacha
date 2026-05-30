@@ -209,7 +209,8 @@ function renderCollectionWheel(){
   const len=list.length;
   box.innerHTML=list.map((card,i)=>{
     const pct=ownedPiecesCount(card.id)/PIECE_COUNT*100;
-    return `<button class="collection-wheel-card" type="button" data-index="${i}" data-id="${card.id}" style="--tone-color:${TONES[card.tone].color}">
+    const glow=card.rarity==='SSR'?'rarity-glow-ssr':(card.rarity==='SR'?'rarity-glow-sr':'');
+    return `<button class="collection-wheel-card ${glow}" type="button" data-index="${i}" data-id="${card.id}" style="--tone-color:${TONES[card.tone].color}">
       <img src="${card.image}" alt="${card.name}">
       <span class="wheel-rarity ${rarityClass(card.rarity)}">${rarityLabel(card.rarity)}</span>
       <span class="wheel-progress"><i style="width:${pct}%"></i></span>
@@ -307,7 +308,7 @@ function renderOverview(){
     if(!list.length){
       grid.innerHTML='<div class="collection-grid-empty">当前筛选没有角色卡。</div>';
     }else{
-      grid.innerHTML=list.map(c=>{ const pct=ownedPiecesCount(c.id)/PIECE_COUNT*100; return `<article class="scroll-card" data-id="${c.id}" style="--tone-color:${TONES[c.tone].color}">
+      grid.innerHTML=list.map(c=>{ const pct=ownedPiecesCount(c.id)/PIECE_COUNT*100; const glow=c.rarity==='SSR'?'rarity-glow-ssr':(c.rarity==='SR'?'rarity-glow-sr':''); return `<article class="scroll-card ${glow}" data-id="${c.id}" style="--tone-color:${TONES[c.tone].color}">
         ${isComplete(c.id)?'<div class="completed-badge">已完成</div>':''}
         <img src="${c.image}" alt="${c.name}">
         <div class="scroll-card-info">
@@ -377,7 +378,8 @@ function renderPuzzle(card){
   svg.setAttribute('viewBox', `0 0 ${CANVAS.w} ${CANVAS.h}`);
   const defs=PIECE_LAYOUT.map(item=>`<clipPath id="clip-${item.key}"><path d="${PIECE_PATHS[item.key]}"></path></clipPath>`).join('');
   const lights=PIECE_LAYOUT.map(item=>hasPiece(card.id,item.pieceIndex)?`<image class="piece-light" href="${card.image}" x="0" y="0" width="${CANVAS.w}" height="${CANVAS.h}" preserveAspectRatio="none" clip-path="url(#clip-${item.key})"></image>`:'').join('');
-  const seams=PIECE_LAYOUT.map(item=>`<path class="piece-seam" d="${PIECE_PATHS[item.key]}"></path>`).join('');
+  const seamRarityClass=card.rarity==='SSR'?'rarity-seam-ssr':(card.rarity==='SR'?'rarity-seam-sr':'');
+  const seams=PIECE_LAYOUT.map(item=>`<path class="piece-seam ${seamRarityClass}" d="${PIECE_PATHS[item.key]}"></path>`).join('');
   const hits=PIECE_LAYOUT.map(item=>`<path class="piece-hit" data-piece="${item.pieceIndex}" d="${PIECE_PATHS[item.key]}"></path>`).join('');
   svg.innerHTML=`<defs>${defs}</defs>${lights}${seams}${hits}`;
   svg.querySelectorAll('.piece-hit').forEach(p=>p.addEventListener('click',()=>openPieceModal(card.id, Number(p.dataset.piece))));

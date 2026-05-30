@@ -1224,3 +1224,22 @@ body{min-height:100vh;background:
   .collection-wheel-stage:before{bottom:86px;height:150px;}
   .collection-wheel-enter{bottom:22px;min-width:150px;padding:11px 20px;}
 }
+
+
+/* ===== 品质发光：仅新增边缘光效，不改布局 ===== */
+.collection-wheel-card.rarity-glow-ssr,
+.scroll-card.rarity-glow-ssr{
+  box-shadow:0 0 0 1px rgba(255,222,120,.78),0 0 22px rgba(255,204,70,.34),0 22px 52px rgba(0,0,0,.46);
+}
+.collection-wheel-card.rarity-glow-sr,
+.scroll-card.rarity-glow-sr{
+  box-shadow:0 0 0 1px rgba(225,235,255,.72),0 0 20px rgba(190,210,255,.30),0 22px 52px rgba(0,0,0,.44);
+}
+.piece-seam.rarity-seam-ssr{
+  stroke:rgba(255,235,150,.90);
+  filter:drop-shadow(0 0 6px rgba(255,205,80,.55));
+}
+.piece-seam.rarity-seam-sr{
+  stroke:rgba(230,238,255,.88);
+  filter:drop-shadow(0 0 6px rgba(190,210,255,.46));
+}

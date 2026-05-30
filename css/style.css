@@ -1375,3 +1375,28 @@ body:before{
   .mobile-hero-card{width:min(54vw,205px) !important;}
   .mobile-hero-orbit{min-height:235px !important;}
 }
+
+
+/* ===== 品质发光：仅新增边缘光效，不改布局 ===== */
+.preview-card.rarity-glow-ssr,
+.bag-item.rarity-glow-ssr,
+.result-item.rarity-glow-ssr{
+  box-shadow:0 0 0 1px rgba(255,222,120,.78),0 0 20px rgba(255,204,70,.34),0 18px 45px rgba(0,0,0,.36);
+}
+.preview-card.rarity-glow-sr,
+.bag-item.rarity-glow-sr,
+.result-item.rarity-glow-sr{
+  box-shadow:0 0 0 1px rgba(225,235,255,.72),0 0 18px rgba(190,210,255,.30),0 18px 45px rgba(0,0,0,.34);
+}
+.flying-card.ssr .face{
+  box-shadow:0 0 0 1px rgba(255,226,140,.82),0 0 46px rgba(255,202,70,.66),0 24px 70px rgba(0,0,0,.55);
+}
+.flying-card.sr .face{
+  box-shadow:0 0 0 1px rgba(225,235,255,.78),0 0 38px rgba(190,210,255,.52),0 24px 70px rgba(0,0,0,.55);
+}
+.cutscene-card-img.rarity-cutscene-ssr{
+  box-shadow:0 0 0 1px rgba(255,226,140,.82),0 0 42px rgba(255,202,70,.58),0 26px 68px rgba(0,0,0,.55);
+}
+.cutscene-card-img.rarity-cutscene-sr{
+  box-shadow:0 0 0 1px rgba(225,235,255,.78),0 0 36px rgba(190,210,255,.48),0 26px 68px rgba(0,0,0,.55);
+}
