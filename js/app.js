@@ -6,6 +6,7 @@ let currentFilter = 'all';
 const MUSIC_KEY = 'wuyin_music_enabled_v1';
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
 let currentCardAudio = null;
+let primedCutsceneAudio = null;
 
 function structuredClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); return raw ? { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) } : structuredClone(DEFAULT_STATE); }catch(e){ return structuredClone(DEFAULT_STATE); } }
@@ -34,7 +35,21 @@ function totalPotentialFragments(){ return duplicateItems().reduce((s,item)=>s+i
 
 function updateMusicToggle(){ const btn=document.getElementById('musicToggleBtn'); if(!btn) return; btn.textContent=musicEnabled?'音乐：开':'音乐：关'; btn.classList.toggle('off', !musicEnabled); }
 function setMusicEnabled(enabled){ musicEnabled=enabled; localStorage.setItem(MUSIC_KEY, enabled?'on':'off'); updateMusicToggle(); if(!enabled) stopCardMusic(); }
-function stopCardMusic(){ if(currentCardAudio){ currentCardAudio.pause(); currentCardAudio.currentTime=0; currentCardAudio=null; } }
+function clearPrimedCutsceneAudio(){
+  if(primedCutsceneAudio && primedCutsceneAudio.audio && primedCutsceneAudio.audio !== currentCardAudio){
+    primedCutsceneAudio.audio.pause();
+    try{ primedCutsceneAudio.audio.currentTime = 0; }catch(e){}
+  }
+  primedCutsceneAudio = null;
+}
+function stopCardMusic(){
+  clearPrimedCutsceneAudio();
+  if(currentCardAudio){
+    currentCardAudio.pause();
+    try{ currentCardAudio.currentTime=0; }catch(e){}
+    currentCardAudio=null;
+  }
+}
 function uniqueAudioList(list){ return [...new Set(list.filter(Boolean))]; }
 function playAudioWithFallback(list, options={}){
   if(!musicEnabled) return;
@@ -91,6 +106,53 @@ function playAudioWithFallback(list, options={}){
   tryNext();
 }
 function fullAudioCandidates(card){ return [card.fullAudio, `assets/audio/${card.id}.mp3`, `assets/audio/${card.id}_full.mp3`, card.pieceAudio]; }
+function primeSingleDrawCutsceneAudio(card){
+  if(!musicEnabled || !card) return;
+  clearPrimedCutsceneAudio();
+  const candidates=uniqueAudioList(fullAudioCandidates(card));
+  if(!candidates.length) return;
+  let index=0;
+  function tryPrime(){
+    if(index>=candidates.length) return;
+    const audio=new Audio(candidates[index++]);
+    primedCutsceneAudio={cardId:card.id,audio};
+    currentCardAudio=audio;
+    audio.preload='auto';
+    audio.volume=0;
+    audio.addEventListener('error',()=>{
+      if(primedCutsceneAudio && primedCutsceneAudio.audio===audio){
+        primedCutsceneAudio=null;
+        if(currentCardAudio===audio) currentCardAudio=null;
+        tryPrime();
+      }
+    },{once:true});
+    const playPromise=audio.play();
+    if(playPromise && typeof playPromise.then==='function'){
+      playPromise.then(()=>{
+        if(primedCutsceneAudio && primedCutsceneAudio.audio===audio){
+          audio.pause();
+          try{ audio.currentTime=0; }catch(e){}
+        }
+      }).catch(()=>{
+        if(primedCutsceneAudio && primedCutsceneAudio.audio===audio){
+          primedCutsceneAudio=null;
+          if(currentCardAudio===audio) currentCardAudio=null;
+        }
+      });
+    }
+  }
+  tryPrime();
+}
+function playPrimedCutsceneAudio(cardId){
+  if(!musicEnabled || !primedCutsceneAudio || primedCutsceneAudio.cardId!==cardId || !primedCutsceneAudio.audio) return false;
+  const audio=primedCutsceneAudio.audio;
+  primedCutsceneAudio=null;
+  currentCardAudio=audio;
+  audio.volume=1;
+  try{ audio.currentTime=0; }catch(e){}
+  audio.play().catch(()=>{ const c=getCard(cardId); if(c) playAudioWithFallback(fullAudioCandidates(c), {failMessage:'', stopBefore:true}); });
+  return true;
+}
 function pieceAudioCandidates(card, pieceIndex){ return [card.pieceAudio, card.fullAudio, `assets/audio/${card.id}.mp3`, CARD_AUDIO[`${card.id}_p${pieceIndex}`]]; }
 function playPieceMusic(cardId, pieceIndex){
   const c=getCard(cardId);
@@ -105,7 +167,7 @@ function playPieceMusic(cardId, pieceIndex){
   playAudioWithFallback([CARD_AUDIO[`${cardId}_p${pieceIndex}`]], {failMessage:'已预留音乐路径，请放入对应 mp3 文件'});
 }
 function playCardMusic(id){ const c=getCard(id); if(!musicEnabled) return; if(!c || !isOwned(id)) return; playAudioWithFallback(fullAudioCandidates(c), {failMessage:'已解锁完整卡，请放入对应完整音乐文件'}); }
-function playCardCutsceneMusic(id){ const c=getCard(id); if(!musicEnabled || !c) return; playAudioWithFallback(fullAudioCandidates(c), {failMessage:'', stopBefore:true}); }
+function playCardCutsceneMusic(id){ const c=getCard(id); if(!musicEnabled || !c) return; if(playPrimedCutsceneAudio(id)) return; playAudioWithFallback(fullAudioCandidates(c), {failMessage:'', stopBefore:true}); }
 
 function normalizePityState(){
   state.pitySR = Math.max(0, Number(state.pitySR ?? state.pity ?? 0));
@@ -200,7 +262,7 @@ function drawCards(count){
   return results;
 }
 function canPay(count){ const ticketNeed=count, noteNeed=count*160; if(state.tickets>=ticketNeed){ state.tickets-=ticketNeed; return true; } if(state.notes>=noteNeed){ state.notes-=noteNeed; return true; } toast('资源不足，已为你保留“补充资源”按钮'); return false; }
-async function startDraw(count){ stopCardMusic(); if(!canPay(count)) return; lastDrawType=count===1?'one':'ten'; const results=drawCards(count); saveState(); updateAll(); await playAnimation(results); showResults(results); }
+async function startDraw(count){ stopCardMusic(); if(!canPay(count)) return; lastDrawType=count===1?'one':'ten'; const results=drawCards(count); if(count===1) primeSingleDrawCutsceneAudio(results[0]); saveState(); updateAll(); await playAnimation(results); showResults(results); }
 function createAnimCard(card){ const div=document.createElement('div'); const img=card.pieceImage||card.image; div.className=`flying-card ${card.rarity.toLowerCase()}`; div.dataset.id=card.id; div.dataset.piece=card.pieceIndex||''; div.innerHTML=`<div class="inner"><div class="face back"></div><div class="face front"><img src="${img}" onerror="this.onerror=null;this.src='${card.image}'"></div></div>`; return div; }
 function playSSRPrelude(){ return new Promise(resolve=>{ const layer=document.getElementById('gachaLayer'); const omen=document.createElement('div'); omen.className='ssr-omen'; omen.innerHTML=`<div class="ssr-omen-scroll"><div class="ssr-omen-seal">碎片</div><div class="ssr-omen-cloud cloud-a"></div><div class="ssr-omen-cloud cloud-b"></div><div class="ssr-omen-text">金纹启卷 · 拼图归位</div></div>`; layer.appendChild(omen); setTimeout(()=>omen.classList.add('show'),30); setTimeout(()=>omen.classList.add('leave'),1450); setTimeout(()=>{omen.remove();resolve();},1900); }); }
 function drawMainAnimationSrc(hasSSR){ return hasSSR ? 'assets/animations/draw_ssr.mp4' : 'assets/animations/draw_normal.mp4'; }
