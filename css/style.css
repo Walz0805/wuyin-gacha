@@ -1431,3 +1431,113 @@ body:before{
     font-size:29px !important;
   }
 }
+
+
+/* ===== 角色抽卡视频适配：播放完整视频、保留竖屏视频比例、放大显示区域 ===== */
+.cutscene-panel.card-cutscene{
+  width:min(1180px,94vw) !important;
+  height:min(720px,78vh) !important;
+  background:#050706 !important;
+}
+.cutscene-panel.card-cutscene .cutscene-video{
+  object-fit:contain !important;
+  background:#050706 !important;
+}
+@media(max-width:760px){
+  .cutscene-panel.card-cutscene{
+    width:94vw !important;
+    height:min(640px,78vh) !important;
+    border-radius:24px !important;
+  }
+}
+
+/* ===== 角色抽卡视频自适应：电脑横屏、手机竖屏 ===== */
+.cutscene-panel.card-cutscene{
+  width:min(1180px,94vw) !important;
+  height:auto !important;
+  aspect-ratio:16 / 9 !important;
+  max-height:78vh !important;
+  background:#050706 !important;
+}
+.cutscene-panel.card-cutscene .cutscene-video{
+  object-fit:contain !important;
+  background:#050706 !important;
+}
+@media(max-width:760px){
+  .cutscene-panel.card-cutscene{
+    width:min(94vw,430px) !important;
+    height:auto !important;
+    aspect-ratio:9 / 16 !important;
+    max-height:78vh !important;
+    border-radius:24px !important;
+  }
+}
+
+/* ===== PC端角色抽卡视频显示区域放大：竖屏视频也尽量完整、大尺寸显示 ===== */
+@media (min-width: 761px) {
+  .cutscene-panel.card-cutscene{
+    width:min(820px,92vw) !important;
+    height:min(900px,88vh) !important;
+    aspect-ratio:auto !important;
+    max-height:88vh !important;
+    border-radius:34px !important;
+    background:#050706 !important;
+  }
+
+  .cutscene-panel.card-cutscene .cutscene-video{
+    width:100% !important;
+    height:100% !important;
+    object-fit:contain !important;
+    object-position:center center !important;
+    background:#050706 !important;
+  }
+}
+
+
+/* ===== PC端角色抽卡视频超大显示修复：只放大角色动画区域，不改抽卡逻辑 ===== */
+@media (min-width: 761px) {
+  #gachaLayer {
+    padding: 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #gachaStage.gacha-stage {
+    width: 100vw !important;
+    height: 100vh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .cutscene-panel.card-cutscene {
+    width: min(980px, 96vw) !important;
+    height: calc(100vh - 32px) !important;
+    max-width: 96vw !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    border-radius: 30px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #050706 !important;
+  }
+
+  .cutscene-panel.card-cutscene .cutscene-video {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #050706 !important;
+  }
+
+  .cutscene-panel.card-cutscene .cutscene-fallback {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}

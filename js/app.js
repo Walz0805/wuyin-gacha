@@ -7,6 +7,7 @@ const MUSIC_KEY = 'wuyin_music_enabled_v1';
 let musicEnabled = localStorage.getItem(MUSIC_KEY) !== 'off';
 let currentCardAudio = null;
 let primedCutsceneAudio = null;
+let primedCardVideos = {}; // cardId -> { cardId, items:[{src, video, ready, failed}] }
 
 function structuredClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); return raw ? { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) } : structuredClone(DEFAULT_STATE); }catch(e){ return structuredClone(DEFAULT_STATE); } }
@@ -42,8 +43,24 @@ function clearPrimedCutsceneAudio(){
   }
   primedCutsceneAudio = null;
 }
+function clearPrimedCardVideo(cardId){
+  const keys = cardId ? [cardId] : Object.keys(primedCardVideos || {});
+  keys.forEach(key=>{
+    const bundle = primedCardVideos && primedCardVideos[key];
+    if(!bundle) return;
+    (bundle.items || []).forEach(item=>{
+      const video=item.video;
+      if(!video) return;
+      try{ video.pause(); }catch(e){}
+      try{ video.removeAttribute('src'); video.load(); }catch(e){}
+      try{ video.remove(); }catch(e){}
+    });
+    delete primedCardVideos[key];
+  });
+}
 function stopCardMusic(){
   clearPrimedCutsceneAudio();
+  clearPrimedCardVideo();
   if(currentCardAudio){
     currentCardAudio.pause();
     try{ currentCardAudio.currentTime=0; }catch(e){}
@@ -106,16 +123,21 @@ function playAudioWithFallback(list, options={}){
   tryNext();
 }
 function fullAudioCandidates(card){ return [card.fullAudio, `assets/audio/${card.id}.mp3`, `assets/audio/${card.id}_full.mp3`, card.pieceAudio]; }
-function primeSingleDrawCutsceneAudio(card){
-  if(!musicEnabled || !card) return;
+function primeSingleDrawCutsceneAudio(result){
+  if(!musicEnabled || !result) return;
   clearPrimedCutsceneAudio();
-  const candidates=uniqueAudioList(fullAudioCandidates(card));
+  const card=getCard(result.id) || result;
+  const pieceIndex=Number(result.pieceIndex || 1);
+  const segment=Number(card.audioSegmentSeconds || 10);
+  const start=(pieceIndex-1)*segment;
+  const end=pieceIndex*segment;
+  const candidates=uniqueAudioList(pieceAudioCandidates(card,pieceIndex));
   if(!candidates.length) return;
   let index=0;
   function tryPrime(){
     if(index>=candidates.length) return;
     const audio=new Audio(candidates[index++]);
-    primedCutsceneAudio={cardId:card.id,audio};
+    primedCutsceneAudio={cardId:card.id,pieceIndex,audio,start,end};
     currentCardAudio=audio;
     audio.preload='auto';
     audio.volume=0;
@@ -143,14 +165,22 @@ function primeSingleDrawCutsceneAudio(card){
   }
   tryPrime();
 }
-function playPrimedCutsceneAudio(cardId){
+function playPrimedCutsceneAudio(cardId, pieceIndex){
   if(!musicEnabled || !primedCutsceneAudio || primedCutsceneAudio.cardId!==cardId || !primedCutsceneAudio.audio) return false;
+  if(pieceIndex && Number(primedCutsceneAudio.pieceIndex)!==Number(pieceIndex)) return false;
   const audio=primedCutsceneAudio.audio;
+  const start=Math.max(0, Number(primedCutsceneAudio.start || 0));
+  const end=Math.max(0, Number(primedCutsceneAudio.end || 0));
   primedCutsceneAudio=null;
   currentCardAudio=audio;
   audio.volume=1;
-  try{ audio.currentTime=0; }catch(e){}
-  audio.play().catch(()=>{ const c=getCard(cardId); if(c) playAudioWithFallback(fullAudioCandidates(c), {failMessage:'', stopBefore:true}); });
+  try{ audio.currentTime=start; }catch(e){}
+  if(end>start){
+    audio.addEventListener('timeupdate',()=>{
+      if(audio.currentTime>=end) stopCardMusic();
+    });
+  }
+  audio.play().catch(()=>{ const c=getCard(cardId); if(c) playPieceMusic(cardId, Number(pieceIndex || 1)); });
   return true;
 }
 function pieceAudioCandidates(card, pieceIndex){ return [card.pieceAudio, card.fullAudio, `assets/audio/${card.id}.mp3`, CARD_AUDIO[`${card.id}_p${pieceIndex}`]]; }
@@ -168,6 +198,11 @@ function playPieceMusic(cardId, pieceIndex){
 }
 function playCardMusic(id){ const c=getCard(id); if(!musicEnabled) return; if(!c || !isOwned(id)) return; playAudioWithFallback(fullAudioCandidates(c), {failMessage:'已解锁完整卡，请放入对应完整音乐文件'}); }
 function playCardCutsceneMusic(id){ const c=getCard(id); if(!musicEnabled || !c) return; if(playPrimedCutsceneAudio(id)) return; playAudioWithFallback(fullAudioCandidates(c), {failMessage:'', stopBefore:true}); }
+function playSingleDrawResultMusic(result){
+  if(!musicEnabled || !result) return;
+  if(playPrimedCutsceneAudio(result.id, result.pieceIndex)) return;
+  playPieceMusic(result.id, result.pieceIndex);
+}
 
 function normalizePityState(){
   state.pitySR = Math.max(0, Number(state.pitySR ?? state.pity ?? 0));
@@ -262,13 +297,94 @@ function drawCards(count){
   return results;
 }
 function canPay(count){ const ticketNeed=count, noteNeed=count*160; if(state.tickets>=ticketNeed){ state.tickets-=ticketNeed; return true; } if(state.notes>=noteNeed){ state.notes-=noteNeed; return true; } toast('资源不足，已为你保留“补充资源”按钮'); return false; }
-async function startDraw(count){ stopCardMusic(); if(!canPay(count)) return; lastDrawType=count===1?'one':'ten'; const results=drawCards(count); if(count===1) primeSingleDrawCutsceneAudio(results[0]); saveState(); updateAll(); await playAnimation(results); showResults(results); }
+async function startDraw(count){ stopCardMusic(); if(!canPay(count)) return; lastDrawType=count===1?'one':'ten'; const results=drawCards(count); if(count===1){ primeSingleDrawCutsceneAudio(results[0]); } uniqueResultCards(results).forEach(item=>primeCardCutsceneVideo(item.id)); saveState(); updateAll(); await playAnimation(results); showResults(results); if(count===1) playSingleDrawResultMusic(results[0]); }
 function createAnimCard(card){ const div=document.createElement('div'); const img=card.pieceImage||card.image; div.className=`flying-card ${card.rarity.toLowerCase()}`; div.dataset.id=card.id; div.dataset.piece=card.pieceIndex||''; div.innerHTML=`<div class="inner"><div class="face back"></div><div class="face front"><img src="${img}" onerror="this.onerror=null;this.src='${card.image}'"></div></div>`; return div; }
 function playSSRPrelude(){ return new Promise(resolve=>{ const layer=document.getElementById('gachaLayer'); const omen=document.createElement('div'); omen.className='ssr-omen'; omen.innerHTML=`<div class="ssr-omen-scroll"><div class="ssr-omen-seal">碎片</div><div class="ssr-omen-cloud cloud-a"></div><div class="ssr-omen-cloud cloud-b"></div><div class="ssr-omen-text">金纹启卷 · 拼图归位</div></div>`; layer.appendChild(omen); setTimeout(()=>omen.classList.add('show'),30); setTimeout(()=>omen.classList.add('leave'),1450); setTimeout(()=>{omen.remove();resolve();},1900); }); }
 function drawMainAnimationSrc(hasSSR){ return hasSSR ? 'assets/animations/draw_ssr.mp4' : 'assets/animations/draw_normal.mp4'; }
-function cardCutsceneSrc(cardId){ return `assets/animations/cards/${cardId}.mp4`; }
+function isMobileCutsceneVideo(){ return window.matchMedia && window.matchMedia('(max-width: 760px)').matches; }
+function cardCutsceneSources(cardId){
+  const base = 'assets/animations/cards';
+  // 标准命名 cardId.mp4 优先，避免先请求 _pc/_mobile 404 后错过浏览器的点击手势声音授权。
+  if(isMobileCutsceneVideo()){
+    return [`${base}/${cardId}.mp4`, `${base}/${cardId}_mobile.mp4`, `${base}/${cardId}_pc.mp4`];
+  }
+  return [`${base}/${cardId}.mp4`, `${base}/${cardId}_pc.mp4`, `${base}/${cardId}_mobile.mp4`];
+}
+function cardCutsceneSrc(cardId){ return cardCutsceneSources(cardId)[0]; }
+function primeCardCutsceneVideo(cardId){
+  if(!cardId || !musicEnabled) return;
+  clearPrimedCardVideo(cardId);
+  const sources = cardCutsceneSources(cardId);
+  if(!sources.length) return;
+  const bundle = { cardId, items: [] };
+  primedCardVideos[cardId] = bundle;
+
+  sources.forEach(src=>{
+    const video = document.createElement('video');
+    const item = { src, video, ready:false, failed:false };
+    bundle.items.push(item);
+    video.className = 'cutscene-video';
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.autoplay = false;
+    video.muted = false;
+    video.defaultMuted = false;
+    video.volume = 0;
+    video.loop = true;
+    video.setAttribute('playsinline','');
+    video.style.position = 'fixed';
+    video.style.left = '-9999px';
+    video.style.top = '-9999px';
+    video.style.width = '1px';
+    video.style.height = '1px';
+    video.style.opacity = '0';
+    video.style.pointerEvents = 'none';
+    video.oncanplay = ()=>{ item.ready = true; };
+    video.onplaying = ()=>{ item.ready = true; };
+    video.onerror = ()=>{ item.failed = true; try{ video.remove(); }catch(e){}; };
+    document.body.appendChild(video);
+    video.src = src;
+    video.load();
+    // 这一步必须在抽卡点击事件同步链路里执行：先让视频以 0 音量进入播放态，后面移入面板时只打开音量，不重新索取声音权限。
+    const playPromise = video.play();
+    if(playPromise && typeof playPromise.catch === 'function'){
+      playPromise.catch(()=>{ item.failed = true; try{ video.remove(); }catch(e){}; });
+    }
+  });
+}
 function uniqueResultCards(results){ const seen=new Set(); const list=[]; results.forEach(item=>{ if(!seen.has(item.id)){ seen.add(item.id); list.push(item); } }); return list; }
 function clearGachaStage(){ const stage=document.getElementById('gachaStage'); if(stage) stage.innerHTML=''; }
+function pickPrimedCardVideo(cardId){
+  const bundle = primedCardVideos && primedCardVideos[cardId];
+  if(!bundle) return null;
+  // 按 sources 的顺序选；优先选已 ready 的，避免 404 候选和未加载候选抢占。
+  const ready = (bundle.items || []).find(item=>item && !item.failed && item.ready && item.video);
+  const usable = ready || (bundle.items || []).find(item=>item && !item.failed && item.video && item.video.readyState > 0);
+  if(!usable) return null;
+  delete primedCardVideos[cardId];
+  (bundle.items || []).forEach(item=>{
+    if(item !== usable && item.video){
+      try{ item.video.pause(); }catch(e){}
+      try{ item.video.remove(); }catch(e){}
+    }
+  });
+  return usable.video;
+}
+function createCutsceneSoundButton(panel, video){
+  if(panel.querySelector('.cutscene-sound-btn')) return;
+  const soundBtn=document.createElement('button');
+  soundBtn.type='button';
+  soundBtn.className='cutscene-sound-btn';
+  soundBtn.textContent='开启视频声音';
+  soundBtn.onclick=()=>{
+    video.muted=false;
+    video.defaultMuted=false;
+    video.volume=1;
+    video.removeAttribute('muted');
+    video.play().then(()=>soundBtn.remove()).catch(()=>{});
+  };
+  panel.appendChild(soundBtn);
+}
 function playCutsceneStage(options, shouldStop){
   return new Promise(resolve=>{
     if(shouldStop && shouldStop()){ resolve(); return; }
@@ -298,21 +414,70 @@ function playCutsceneStage(options, shouldStop){
       finished=true;
       resolve();
     }
-    const video=document.createElement('video');
+    const videoSources = Array.isArray(options.sources) && options.sources.length ? options.sources : [options.src].filter(Boolean);
+    const shouldUseVideoSound = !!options.withSound && musicEnabled;
+    let video = shouldUseVideoSound && options.cardId ? pickPrimedCardVideo(options.cardId) : null;
+    let videoSourceIndex = 0;
+    let fromPrime = !!video;
+    if(!video){
+      video = document.createElement('video');
+      video.src = videoSources[videoSourceIndex] || '';
+    }
     video.className='cutscene-video';
-    video.src=options.src;
-    video.muted=true;
+    video.removeAttribute('style');
     video.playsInline=true;
     video.autoplay=true;
     video.preload='auto';
+    video.loop=false;
+    video.muted = !shouldUseVideoSound;
+    video.defaultMuted = !shouldUseVideoSound;
+    video.volume = shouldUseVideoSound ? 1 : 0;
+    if(shouldUseVideoSound) video.removeAttribute('muted');
     video.onended=()=>setTimeout(done,120);
-    video.onerror=()=>setTimeout(done,minTime);
+    video.onerror=()=>{
+      if(fromPrime){
+        if(typeof options.onVideoUnavailable === 'function') options.onVideoUnavailable();
+        setTimeout(done,minTime);
+        return;
+      }
+      videoSourceIndex += 1;
+      if(videoSources[videoSourceIndex]){
+        video.src = videoSources[videoSourceIndex];
+        video.load();
+        return;
+      }
+      if(typeof options.onVideoUnavailable === 'function') options.onVideoUnavailable();
+      setTimeout(done,minTime);
+    };
     video.oncanplay=()=>{
       if(finished) return;
       panel.classList.add('has-video');
-      video.play().catch(()=>setTimeout(done,minTime));
+      video.muted = !shouldUseVideoSound;
+      video.defaultMuted = !shouldUseVideoSound;
+      video.volume = shouldUseVideoSound ? 1 : 0;
+      if(shouldUseVideoSound) video.removeAttribute('muted');
+      if(!fromPrime || video.paused){
+        video.play().catch(()=>{
+          if(options.withSound){
+            createCutsceneSoundButton(panel, video);
+          }else{
+            setTimeout(done,minTime);
+          }
+        });
+      }
     };
     panel.appendChild(video);
+    if(fromPrime){
+      panel.classList.add('has-video');
+      try{ video.currentTime = 0; }catch(e){}
+      video.muted=false;
+      video.defaultMuted=false;
+      video.volume=1;
+      video.removeAttribute('muted');
+      if(video.paused){
+        video.play().catch(()=>createCutsceneSoundButton(panel, video));
+      }
+    }
     setTimeout(()=>{ if(!finished && shouldStop && shouldStop()) done(); },100);
     setTimeout(()=>{ if(!finished && !panel.classList.contains('has-video')) done(); },minTime + 300);
     setTimeout(()=>{ if(!finished) done(); },Number(options.maxDuration || 5200));
@@ -332,21 +497,23 @@ async function playDrawCutsceneSequence(results, shouldStop){
   }, shouldStop);
   if(shouldStop && shouldStop()) return;
   const list=uniqueResultCards(results);
-  const shouldPlaySingleCardMusic = results.length === 1;
   for(const card of list){
     if(shouldStop && shouldStop()) return;
-    if(shouldPlaySingleCardMusic) playCardCutsceneMusic(card.id);
     await playCutsceneStage({
       kind:'card-cutscene',
       src:cardCutsceneSrc(card.id),
+      sources:cardCutsceneSources(card.id),
+      cardId:card.id,
       image:card.image,
       rarity:card.rarity,
       title:`${card.instrument} · 器灵显影`,
       subtitle:`本次抽到了 ${card.instrument} 的拼图碎片。`,
       kicker:'角色卡动画',
       hint:`${card.instrument} 动画播放中`,
+      // 单抽和十连的角色动画都播放视频自带声音；单抽对应的碎片音乐等结果弹窗出现后再播放。
+      withSound:true,
       fallbackDuration:1250,
-      maxDuration:5600
+      maxDuration:12000
     }, shouldStop);
   }
 }
@@ -361,6 +528,7 @@ function playAnimation(results){
       if(done) return;
       done=true;
       layer.querySelectorAll('.ssr-omen').forEach(el=>el.remove());
+      clearPrimedCardVideo();
       layer.classList.add('hidden');
       if(stage) stage.innerHTML='';
       if(hint) hint.classList.add('hidden');
